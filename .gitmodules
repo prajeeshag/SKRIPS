@@ -1,0 +1,3 @@
+[submodule "external/esmf"]
+	path = external/esmf
+	url = https://github.com/esmf-org/esmf.git
