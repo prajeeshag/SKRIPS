@@ -1,8 +1,8 @@
 . ../bashrc_shaheen
 
 echo "installing WRF"
-echo "WRF DIR is: ${SKRIPS_DIR}/WRFV413_AO"
-cd ${SKRIPS_DIR}/WRFV413_AO
+echo "WRF DIR is: ${WRF_DIR}"
+cd ${WRF_DIR}
 WRF_UPDATE_DIR0=${SKRIPS_DIR}/installOption_WRF/wrfAO413_shared/
 WRF_UPDATE_DIR1=${SKRIPS_DIR}/installOption_WRF/wrfAO413_shaheen/
 
@@ -32,7 +32,7 @@ ln -sf ${WRF_UPDATE_DIR0}/wrf_ESMFMod.F main/
 ln -sf ${WRF_UPDATE_DIR1}/configure.wrf configure.wrf
 
 echo "compiling WRFv4.1.3"
-./compile -j 16 em_real &> log.em_real1
+./compile  em_real &> log.em_real1
 
 echo "finished copying"
 linenumber=$(grep -n "bundled:" configure.wrf | cut -d : -f 1)
