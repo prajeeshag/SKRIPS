@@ -1,0 +1,6 @@
+[submodule "external/--force"]
+	path = external/--force
+	url = https://github.com/wrf-model/WRF.git
+[submodule "external/WRF"]
+	path = external/WRF
+	url = https://github.com/wrf-model/WRF.git
