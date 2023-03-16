@@ -23,8 +23,8 @@ if ($ESMF_COMPILER == Unicos) then
   set comp      = ftn
   set cccommand = cc
 else
-  set comp      = mpif77
-  set cccommand = mpicc
+  set comp      = ftn
+  set cccommand = cc
 endif
 
 if ($ESMF_COMPILER == intel) then
