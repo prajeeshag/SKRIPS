@@ -11,9 +11,8 @@ module load cray-parallel-netcdf
 # Update the following directories from line 4 to 13
 export SKRIPS_DIR=/lustre2/project/k1028/pag/s2s/SKRIPS
 export ESMF_DIR=$SKRIPS_DIR/external/esmf/
-export MITGCM_DIR=$SKRIPS_DIR/MITgcm-checkpoint67m/
+export MITGCM_DIR=$SKRIPS_DIR/external/MITgcm/
 export WRF_DIR=$SKRIPS_DIR/external/WRF/
-export WW3_DIR=$SKRIPS_DIR/ww3_607/
 
 # NETCDF and MPI options
 export NETCDF=$NETCDF_DIR
@@ -33,10 +32,6 @@ export SKRIPS_NETCDF_INCLUDE=-I$ESMF_NETCDF_INCLUDE
 export SKRIPS_NETCDF_LIB=-L$ESMF_NETCDF_LIBPATH
 
 # For WW3
-export PATH=$WW3_DIR/model/bin:${PATH}
-export PATH=$WW3_DIR/model/exe:${PATH}
-export WWATCH3_ENV=$WW3_DIR/wwatch3.env
-export WWATCH3_NETCDF=NC4
 export NETCDF_CONFIG='nc-config'
 
 

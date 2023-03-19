@@ -7,3 +7,6 @@
 [submodule "external/esmf"]
 	path = external/esmf
 	url = https://github.com/esmf-org/esmf.git
+[submodule "external/MITgcm"]
+	path = external/MITgcm
+	url = https://github.com/MITgcm/MITgcm.git
