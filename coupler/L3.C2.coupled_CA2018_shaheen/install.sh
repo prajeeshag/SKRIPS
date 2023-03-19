@@ -21,15 +21,15 @@ echo "The option file is: $MITGCM_OPT"
 #cd ..
 
 # build the MITGCM as a library
-#mkdir build code
-#cp utils/* build/ # copy the scripts to install MITGCM
-#cp mitCode/* code/ # copy the scripts to install MITGCM
-#cp mitSettingCA/* code/ # copy the scripts to install MITGCM
-#cd build
-#./makescript_fwd.sio.shaheen ${MITGCM_DIR} # install MITGCM, generate *.f files
-#
-#exit 0
-#
+mkdir build code
+cp utils/* build/ # copy the scripts to install MITGCM
+cp mitCode/* code/ # copy the scripts to install MITGCM
+cp mitSettingCA/* code/ # copy the scripts to install MITGCM
+cd build
+./makescript_fwd.sio.shaheen ${MITGCM_DIR} # install MITGCM, generate *.f files
+
+exit 0
+
 #cp ${MPI_INC}/mpif* . 
 #./mkmod.sh ocn # install MITGCM as a library, generate *.mod files
 #cd ..
