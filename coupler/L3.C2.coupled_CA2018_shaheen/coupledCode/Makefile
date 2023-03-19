@@ -45,8 +45,8 @@ include ./wrflib.mk
 
 
 # -----------------------------------------------------------------------------
-esmf_application: mod_config.o mod_types.o mod_esmf_ocn.o mod_esmf_atm.o mod_esmf_cpl.o mod_esmf_esm.o mitgcm_wrf.o libmitgcm_org_ocn.a libmitgcmrtl.a
-	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(WRF_INC) -L${PWD} -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) setrlstk.o sigreg.o -lmitgcm_org_ocn -lmitgcmrtl
+esmf_application: mod_config.o mod_types.o mod_esmf_ocn.o mod_esmf_atm.o mod_esmf_cpl.o mod_esmf_esm.o mitgcm_wrf.o libmitgcmuv.a 
+	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(WRF_INC) -L${PWD} -lmitgcmuv -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) 
 
 # module dependencies:
 mod_esmf_esm.o: mod_esmf_ocn.o mod_esmf_atm.o mod_types.o 
@@ -60,6 +60,6 @@ mod_types.o:
 # -----------------------------------------------------------------------------
 .PHONY: clean distclean
 clean:
-	rm -f esmf_application *.o 
+	rm -f esmf_application *.o *.mod 
 distclean: clean
 	rm -f PET*.ESMF_LogFile mod*.mod *.a mit*.mod mitgcm_wrf* mod* namelist*
