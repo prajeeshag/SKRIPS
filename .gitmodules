@@ -4,3 +4,6 @@
 [submodule "external/WRF"]
 	path = external/WRF
 	url = https://github.com/wrf-model/WRF.git
+[submodule "external/esmf"]
+	path = external/esmf
+	url = https://github.com/esmf-org/esmf.git
