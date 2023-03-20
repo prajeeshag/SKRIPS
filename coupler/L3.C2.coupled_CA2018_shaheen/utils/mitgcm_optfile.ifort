@@ -3,9 +3,9 @@
 # Build options for PGI compiler with openmpi on ring 
 #
 
-FC=ftn
-CC=cc
-F90C=ftn
+FC=$(FC:-mpiifort)
+CC=$(CC:-mpiicc)
+F90C=$(F90C:-mpiifort)
 
 DEFINES='-DALLOW_USE_MPI -DALWAYS_USE_MPI -DWORDLENGTH=4'
 CPP='/lib/cpp  -traditional -P'

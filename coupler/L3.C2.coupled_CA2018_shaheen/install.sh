@@ -1,4 +1,5 @@
 #!/bin/sh
+
 . ../../etc/env.shaheen_intel
 
 echo "ESMF location? : " ${ESMF_DIR}
@@ -28,7 +29,6 @@ cp mitSettingCA/* code/ # copy the scripts to install MITGCM
 cd build
 ./makescript_fwd.sio.shaheen ${MITGCM_DIR} # install MITGCM, generate *.f files
 
-exit 0
 
 #cp ${MPI_INC}/mpif* . 
 #./mkmod.sh ocn # install MITGCM as a library, generate *.mod files
