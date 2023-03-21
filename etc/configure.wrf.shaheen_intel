@@ -14,8 +14,6 @@
 # To permanently change options, change the settings for your platform
 # in the file arch/configure.defaults then rerun configure.
 #
-# ESMF_DIR=/home/x_sunr/scripps_kaust_model_github/esmf/
-
 SHELL           =       /bin/sh
 DEVTOP          =       `pwd`
 LIBINCLUDE      =       .
@@ -81,14 +79,13 @@ ESMF_MOD_DEPENDENCE = $(WRF_SRC_ROOT_DIR)/external/io_esmf/module_utility.o
 # select -I options for external/io_esmf vs. external/esmf_time_f90
 ESMF_IO_INC         = -I$(WRF_SRC_ROOT_DIR)/external/io_esmf
 # select -I options for separately installed ESMF library, if present
-ESMF_MOD_INC        = -I$(ESMF_DIR)/mod/modO/Unicos.intel.64.mpi.default -I$(WRF_SRC_ROOT_DIR)/main $(ESMF_IO_INC)
+ESMF_MOD_INC        = -I$(ESMF_MOD) -I$(WRF_SRC_ROOT_DIR)/main $(ESMF_IO_INC)
 # select cpp token for external/io_esmf vs. external/esmf_time_f90
 ESMF_IO_DEFS        = -DESMFIO
 # select build target for external/io_esmf vs. external/esmf_time_f90
 ESMF_TARGET         = wrfio_esmf
 
 # add the lib of ESMF
-ESMF_LIB         = $(ESMF_DIR)/lib/libO/Unicos.intel.64.mpi.default
 include $(ESMF_LIB)/esmf.mk
 
 
@@ -173,7 +170,6 @@ ARCHFLAGS       =    $(COREDEFS) -DIWORDSIZE=$(IWORDSIZE) -DDWORDSIZE=$(DWORDSIZ
                       -DDM_PARALLEL \
                        \
                       -DNETCDF \
-                      -DPNETCDF \
                        \
                       -DESMFIO \
                        \
@@ -204,7 +200,7 @@ CFLAGS          =    $(CFLAGS_LOCAL) -DDM_PARALLEL  \
 FCFLAGS         =    $(FCOPTIM) $(FCBASEOPTS)
 ESMF_LIB_FLAGS  =    
 # ESMF 5 -- these are defined in esmf.mk, included above
- ESMF_IO_LIB     =    $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS) -L$(WRF_SRC_ROOT_DIR)/external/io_esmf -L/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib/ -lwrfio_esmf 
+ ESMF_IO_LIB     =    $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS) -L$(WRF_SRC_ROOT_DIR)/external/io_esmf -lwrfio_esmf 
 ESMF_IO_LIB_EXT =    $(ESMF_IO_LIB)
 INCLUDE_MODULES =    $(MODULE_SRCH_FLAG) \
                      $(ESMF_MOD_INC) $(ESMF_LIB_FLAGS) \
@@ -232,7 +228,7 @@ CC_TOOLS_CFLAGS = -DNMM_CORE=$(WRF_NMM_CORE)
                       $(WRF_SRC_ROOT_DIR)/frame/pack_utils.o 
 
  LIB_EXTERNAL    = \
-                      $(ESMF_LIB)/libesmf.a -L$(WRF_SRC_ROOT_DIR)/external/io_netcdf -lwrfio_nf -L/opt/cray/pe/netcdf/4.7.4.4/INTEL/19.1/lib -lnetcdff -lnetcdf  -L$(WRF_SRC_ROOT_DIR)/external/io_pnetcdf -lwrfio_pnf -L/opt/cray/pe/parallel-netcdf/1.12.1.4/INTEL/19.1/lib -lpnetcdf   
+                      $(ESMF_LIB)/libesmf.a -L$(WRF_SRC_ROOT_DIR)/external/io_netcdf -lwrfio_nf -L$(NETCDF)/lib -lnetcdff -lnetcdf     
 
 LIB             =    $(LIB_BUNDLED) $(LIB_EXTERNAL) $(LIB_LOCAL) $(LIB_WRF_HYDRO) $(NETCDF4_DEP_LIB)
 LDFLAGS         =    $(OMP) $(FCFLAGS) $(LDFLAGS_LOCAL) 
@@ -243,11 +239,11 @@ NETCDFPATH      =    /opt/cray/pe/netcdf/4.7.4.4/INTEL/19.1
 HDF5PATH        =    
 WRFPLUSPATH     =    
 RTTOVPATH       =    
-PNETCDFPATH     =    /opt/cray/pe/parallel-netcdf/1.12.1.4/INTEL/19.1
+PNETCDFPATH     =    
 
 bundled:  io_only 
 external: io_only $(WRF_SRC_ROOT_DIR)/external/RSL_LITE/librsl_lite.a gen_comms_rsllite module_dm_rsllite $(ESMF_TARGET)
-io_only:  esmf_time wrfio_nf wrfio_pnf  \
+io_only:  esmf_time wrfio_nf   \
 	  wrf_ioapi_includes wrfio_grib_share wrfio_grib1 wrfio_int fftpack
 
 
