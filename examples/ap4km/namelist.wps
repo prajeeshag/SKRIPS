@@ -25,7 +25,7 @@
  stand_lon = -46.0,
  pole_lat = 90.0,
  pole_lon = 180.,
- geog_data_path = '/project/k1028/pag/s2s/build_WRF/WPS_GEOG'
+ geog_data_path = '~/Work/WPS_GEOG'
 /
 
 &ungrib

@@ -7,3 +7,6 @@
 [submodule "external/esmf"]
 	path = external/esmf
 	url = https://github.com/esmf-org/esmf.git
+[submodule "tools/skrips_utils"]
+	path = tools/skrips_utils
+	url = https://github.com/prajeeshag/skrips_utils.git
