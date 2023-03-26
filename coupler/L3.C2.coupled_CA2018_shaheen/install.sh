@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. ../../etc/env.shaheen_intel
+. ../../etc/env.Linux_intel
 
 echo "ESMF location? : " ${ESMF_DIR}
 echo "WRF413 (with OA coupling) location? : " ${WRF_DIR}
