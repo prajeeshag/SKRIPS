@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. ../../etc/env.Linux_intel
+. ../../env || { echo ../../env does not exist; exit 1; }
 
 echo "ESMF location? : " ${ESMF_DIR}
 echo "WRF413 (with OA coupling) location? : " ${WRF_DIR}
