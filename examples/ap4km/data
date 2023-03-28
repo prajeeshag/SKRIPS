@@ -63,22 +63,20 @@
 # Gridding parameters
  &PARM04
  usingSphericalPolarGrid = .TRUE.,
- xgOrigin=205.22,
- ygOrigin=35.,
- delX=432*0.08,
- delY=256*0.08,
- delZ= 9.977241, 10.139654, 10.467122, 10.964977, 11.641324, 12.507171, 13.576613,
-       14.867060, 16.399516, 18.198929, 20.294589, 22.720609, 25.516483, 28.727721,
-       32.406597, 36.612997, 41.415394, 46.891962, 53.131850, 60.236635, 68.321968, 
-       77.519466, 87.978847, 99.870373, 113.387618, 128.750618, 146.209458, 166.048336, 
-       188.590197, 214.201982, 243.300608, 276.359750, 313.917555, 356.585400, 405.057842, 
-       460.123931, 522.680049, 593.744500, 674.474093, 766.182967, &
+ delx = 1000*0.03000
+ dely = 900*0.03000
+ xgorigin = 31.00000
+ ygorigin = 10.15000
+ delZ = 1.,1.,1.,1.,2.,2.,3.,3.,4.,4.,5.,5.,5.,6.,6.,6.,7.,7.,8.,8.,9.,9.,
+        10.,11.,12.,13.,14.,15.,16.,18.,20.,21.,23.,25.,28.,30.,32.,35.,38.,42.,45.,49.,
+        53.,58.,63.,68.,74.,81.,88.,95.,103.,112.,122.,140.,160.,185.,210.,240.,270.,300.,340.,380.,
+        450.,500.
   &
 # Input datasets
  &PARM05
- bathyFile = 'bathymetry_ar2018.bin',
- uVelInitFile    = 'hycom_U_ccs_newtopo_27Jan2018.bin',
- vVelInitFile    = 'hycom_V_ccs_newtopo_27Jan2018.bin',
- hydrogThetaFile = 'hycom_T_ccs_newtopo_27Jan2018.bin',
- hydrogSaltFile  = 'hycom_S_ccs_newtopo_27Jan2018.bin',
+ bathyFile = 'bathyFile.bin',
+ uVelInitFile    = 'uVelInitFile.bin',
+ vVelInitFile    = 'vVelInitFile.bin',
+ hydrogThetaFile = 'hydrogThetaFile.bin',
+ hydrogSaltFile  = 'hydrogSaltFile.bin',
 &
