@@ -2,6 +2,6 @@
 set -x
 
 export SKRIPS_DIR=${SKRIPS_DIR:-$(pwd)}
-. etc/env.shaheen_intel
+. $SKRIPS_DIR/etc/env.${MACH}
 cd $ESMF_DIR
 make $@
