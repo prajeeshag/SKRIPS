@@ -1,12 +1,12 @@
 #!/bin/bash
-set -x
+set -ex
 
 export SKRIPS_DIR=${SKRIPS_DIR:-$(pwd)}
-. $SKRIPS_DIR/env || { echo "$SKRIPS_DIR/env does not exist"; exit 1; }
+. $SKRIPS_DIR/etc/env.${MACH}
 cd $WRF_DIR
 printf $WRF_CONFIG_OPT | ./configure &> $SKRIPS_DIR/wrf.configure.log
 cp configure.wrf configure.wrf_org
-cp $SKRIPS_DIR/etc/WRFCONFIGURE_FILE configure.wrf
+cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
 ./compile $@ em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
 linenumber=$(grep -n "bundled:" configure.wrf | cut -d : -f 1)
 head -n $((linenumber-1)) configure.wrf > configure.wrf_cpl
