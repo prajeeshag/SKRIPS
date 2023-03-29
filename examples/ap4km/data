@@ -46,15 +46,15 @@
 # Time stepping parameters
  &PARM03
  startTime         = 0.,
- endTime           = 3600.,
+ endTime           = 2678400.,
  deltaTmom         = 120.,
  deltaTtracer      = 120.,
  deltaTClock       = 120.,
  abEps             = 0.1,
  chkptFreq         = 0.,
  pChkptFreq        = 0., 
- dumpFreq          = 3600.,
- taveFreq          = 3600.,
+ dumpFreq          = 21600.,
+ taveFreq          = 21600.,
  tauThetaClimRelax = 0.,
  tauSaltClimRelax  = 0.,
  monitorFreq       = 10.,
