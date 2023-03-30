@@ -22,6 +22,7 @@ cd ..
 # build the test coupler
 cd coupledCode
 ln -sf ../build/libmitgcmuv.a
+make clean
 make
 cd ..
 
