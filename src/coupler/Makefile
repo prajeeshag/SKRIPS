@@ -33,10 +33,10 @@ include ./wrflib.mk
 .SUFFIXES: .f90 .F90 .c .C
 
 %.o : %.f90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} $(WRF_LIB)
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
 
 %.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $< -I${PWD} $(WRF_LIB) 
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $< -I${PWD}  
 
 % : %.c
 	$(ESMF_CXXCOMPILER) -c $(ESMF_CXXCOMPILEOPTS) $(ESMF_CXXCOMPILEPATHSLOCAL) $(ESMF_CXXCOMPILEPATHS) $(ESMF_CXXCOMPILECPPFLAGS) $<
@@ -48,11 +48,12 @@ include ./wrflib.mk
 
 # -----------------------------------------------------------------------------
 $(EXE): mod_config.o mod_types.o mod_esmf_ocn.o mod_esmf_atm.o mod_esmf_cpl.o mod_esmf_esm.o mitgcm_wrf.o
-	$(FC) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(WRF_INC) -L${../mitgcm} -lmitgcmuv -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) 
+	$(FC) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) -L../mitgcm -lmitgcmuv 
 
 # module dependencies:
+mitgcm_wrf.o: mod_esmf_esm.o
 mod_esmf_esm.o: mod_esmf_ocn.o mod_esmf_atm.o mod_types.o 
-mod_esmf_cpl.o: 
+mod_esmf_cpl.o: mod_types.o 
 mod_esmf_ocn.o: mod_types.o
 mod_esmf_atm.o: mod_types.o
 mod_config.o: mod_types.o 
