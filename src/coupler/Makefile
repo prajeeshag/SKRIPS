@@ -18,6 +18,8 @@
 ## flexible and non-portable.                                                 ##
 ################################################################################
 
+EXE=skrips.exe
+
 ifneq ($(origin ESMFMKFILE), environment)
 $(error Environment variable ESMFMKFILE was not set.)
 endif
@@ -31,10 +33,10 @@ include ./wrflib.mk
 .SUFFIXES: .f90 .F90 .c .C
 
 %.o : %.f90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} -L${PWD} $(WRF_LIB)
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} $(WRF_LIB)
 
 %.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $< $(WRF_LIB) 
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $< -I${PWD} $(WRF_LIB) 
 
 % : %.c
 	$(ESMF_CXXCOMPILER) -c $(ESMF_CXXCOMPILEOPTS) $(ESMF_CXXCOMPILEPATHSLOCAL) $(ESMF_CXXCOMPILEPATHS) $(ESMF_CXXCOMPILECPPFLAGS) $<
@@ -45,8 +47,8 @@ include ./wrflib.mk
 
 
 # -----------------------------------------------------------------------------
-esmf_application: mod_config.o mod_types.o mod_esmf_ocn.o mod_esmf_atm.o mod_esmf_cpl.o mod_esmf_esm.o mitgcm_wrf.o 
-	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(WRF_INC) ${MITGCM_LIB} -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) 
+$(EXE): mod_config.o mod_types.o mod_esmf_ocn.o mod_esmf_atm.o mod_esmf_cpl.o mod_esmf_esm.o mitgcm_wrf.o
+	$(FC) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(WRF_INC) -L${../mitgcm} -lmitgcmuv -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) 
 
 # module dependencies:
 mod_esmf_esm.o: mod_esmf_ocn.o mod_esmf_atm.o mod_types.o 
@@ -58,6 +60,8 @@ mod_types.o:
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-.PHONY: clean 
+.PHONY: clean distclean
 clean:
-	rm -f esmf_application *.o *.mod 
+	rm -f $(EXE) *.o *.mod 
+distclean: clean
+	rm -f PET*.ESMF_LogFile mod*.mod *.a mit*.mod mitgcm_wrf* mod* namelist*
