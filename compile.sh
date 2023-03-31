@@ -34,7 +34,7 @@ function available_machines {
 }
 
 function __set_machine {
-    machinename = "$1"
+    machinename="$1"
     if [ -f "etc/env.$machinename" ]; then
         ln -sf etc/env.$machinename env.mach
     else
