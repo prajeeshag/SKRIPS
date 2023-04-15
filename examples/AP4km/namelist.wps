@@ -11,20 +11,20 @@
  parent_grid_ratio =   1, 
  i_parent_start    =   1, 
  j_parent_start    =   1, 
- e_we              =  1001, 
- e_sn              =  901,  
- geog_data_res = 'default',
- dx = 0.03,
- dy = 0.03,
- map_proj = 'lat-lon',
- ref_lat   =  23.65,
- ref_lon   =  46.0,
- truelat1  =  30.0,
- truelat2  =  60.0,
 
- stand_lon = -46.0,
- pole_lat = 90.0,
- pole_lon = 180.,
+
+ geog_data_res = 'default'
+ dx = 4000,
+ dy = 4000,
+ e_we  =  801,
+ e_sn  =  781,
+ map_proj = 'lambert',
+ ref_lat   =  24.,
+ ref_lon   =  47.,
+ truelat1  =  18.0,
+ truelat2  =  27.0,
+ stand_lon =  45.0,
+
  geog_data_path = 'WPS_GEOG'
 /
 
