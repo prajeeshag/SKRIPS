@@ -97,6 +97,7 @@ EOF
 }
 
 __ready_run() {
+    echo "making rundirs ...."
     while read line
     do
         xline=$(echo $line | xargs | sed 's/,/ /g' ) #trim whitespaces
@@ -124,5 +125,5 @@ __launch_run() {
     done < $infile
 }
 
-#__ready_run
-__launch_run
+__ready_run
+#__launch_run

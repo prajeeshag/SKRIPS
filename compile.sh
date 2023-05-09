@@ -105,6 +105,7 @@ function __build_mitgcm_lib {
     ${MITGCM_DIR}/tools/genmake2 "-rootdir" "${MITGCM_DIR}" "-mpi" "-mods" "$codeAbs $mitgcm_cplsrc" "-optfile" "$mitgcm_optfile"
     make -j $jobs depend
     make -j $jobs lib
+    make -j $jobs 
 }
 
 function build_mitgcm_lib {

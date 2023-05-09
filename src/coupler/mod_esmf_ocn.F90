@@ -312,6 +312,8 @@ module mod_esmf_ocn
 !-------------------------------------------------------------------
 ! Used module declarations 
 !-------------------------------------------------------------------
+!  Sets the grid informations of Ocean model
+!  Only, xC, yC, maskC and areaC are provided to the ESMF, i.e. the tracer coordinates
 !
 !  use mitgcm_org_ocn, only : get_grid_parameters
 !
