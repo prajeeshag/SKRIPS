@@ -90,6 +90,20 @@ function build_wrf_lib {
     __build_wrf_lib $jobs
 }
 
+function __get_mitgcm_domain_parm {
+    code=$1
+    codeAbs=$code/SIZE.h
+    mitgcm_cplsrc=$SKRIPS_DIR/src/MITgcm
+    sNx=$(grep -E 'sNx\s*=\s*[0-9]+' $codeAbs | awk -F '=' '{print $2}' | awk '{print $1}' | sed 's/,//g')
+    sNy=$(grep -E 'sNy\s*=\s*[0-9]+' $codeAbs | awk -F '=' '{print $2}' | awk '{print $1}' | sed 's/,//g')
+    nPx=$(grep -E 'nPx\s*=\s*[0-9]+' $codeAbs | awk -F '=' '{print $2}' | awk '{print $1}' | sed 's/,//g')
+    nPy=$(grep -E 'nPy\s*=\s*[0-9]+' $codeAbs | awk -F '=' '{print $2}' | awk '{print $1}' | sed 's/,//g')
+    Nx=$(( sNx * nPx ))
+    Ny=$(( sNy * nPy ))
+    nP=$(( nPx * nPy ))
+    echo "${nP}"
+}
+
 function __build_mitgcm_lib {
     code=$1
     exe=$2
@@ -99,13 +113,16 @@ function __build_mitgcm_lib {
     mitgcm_cplsrc=$SKRIPS_DIR/src/MITgcm
     echo "MITgcm user code directory: $codeAbs"
     echo "MITgcm optfile: $mitgcm_optfile"
-    echo 
-    mkdir -p build/$exe/mitgcm 
-    cd build/$exe/mitgcm
+    echo
+    domain=$(__get_mitgcm_domain_parm $codeAbs)
+    mkdir -p build/$exe/$domain/mitgcm 
+    builddir=$(__get_absolute_path build/$exe/$domain)
+    cd build/$exe/$domain/mitgcm
     ${MITGCM_DIR}/tools/genmake2 "-rootdir" "${MITGCM_DIR}" "-mpi" "-mods" "$codeAbs $mitgcm_cplsrc" "-optfile" "$mitgcm_optfile"
     make -j $jobs depend
     make -j $jobs lib
-    make -j $jobs 
+    make -j $jobs
+    echo "$builddir"
 }
 
 function build_mitgcm_lib {
@@ -122,14 +139,14 @@ function build_mitgcm_lib {
 
 function build_skrips {
     __addarg "-h" "--help" "help" "optional" "" "Build the SKRIPS coupled model"
-    __addarg "-e" "--exe" "storevalue" "required" "" "Name of the executable (Should be same given in build_mitgcm_lib command)"
+    __addarg "-e" "--exe" "storevalue" "required" "" "Path were mitgcm build directory (output of build_mitgcm_lib command)"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __parseargs "$@"
 
     __source_env
 
     # cd to the $exe, it must have created by the earlier commands by this time
-    cd build/$exe
+    cd $exe
     mkdir -p main && cd main
     cp $SKRIPS_DIR/src/coupler/* .
     make -j $jobs

@@ -33,9 +33,26 @@ module mod_esmf_ocn
   use ieee_arithmetic, only : ieee_is_nan
 !
   use mod_types
-!
   implicit none
   private
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: swdown_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: lwdown_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: hl_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: hs_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: uwind_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: vwind_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: atemp_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: aqh_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: evap_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: precip_ESMF
+
+  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: theta_ESMF
+  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: uoce_ESMF
+  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: voce_ESMF
+
+  logical :: ocn_get_first_call = .true.
+  logical :: ocn_put_first_call = .true.
+!
 !
 !-----------------------------------------------------------------------
 !     Public subroutines 
@@ -257,12 +274,6 @@ module mod_esmf_ocn
     call mit_getclock(myTime, myIter)
     nTimeStepsIn = INT( esm_step_seconds/ocn_step_seconds )
   end if
-
-  print *, "calling OCN_Run function"
-  print *, "iLoop_ocn is: ", iLoop_ocn
-  print *, "myTime is: ", myTime
-  print *, "myIter is: ", myIter
-  print *, "nTimeStepsIn is: ", nTimeStepsIn
 
   call mit_run(iLoop_ocn, myTime, myIter, nTimeStepsIn, myThid)
 
@@ -730,16 +741,6 @@ module mod_esmf_ocn
   type(ESMF_State) :: importState
   INTEGER sNx, sNy, OLx, OLy, nSx, nSy, nPx, nPy, Nx, Ny, Nr
   INTEGER myXGlobalLo, myYGlobalLo
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: swdown_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: lwdown_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: hl_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: hs_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: uwind_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: vwind_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: atemp_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: aqh_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: evap_ESMF
-  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: precip_ESMF
   integer :: myThid = 1
 !
   rc = ESMF_SUCCESS
@@ -751,18 +752,19 @@ module mod_esmf_ocn
   call get_domain_size(sNx, sNy, OLx, OLy,                          &
         nSx, nSy, nPx, nPy, Nx, Ny, Nr,                             &
         myXGlobalLo, myYGlobalLo)
-
-  ALLOCATE(swdown_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(lwdown_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(hl_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(hs_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(uwind_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(vwind_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(atemp_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(aqh_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(evap_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-  ALLOCATE(precip_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
-
+  if (ocn_get_first_call) then
+    ALLOCATE(swdown_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(lwdown_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(hl_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(hs_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(uwind_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(vwind_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(atemp_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(aqh_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(evap_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(precip_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ocn_get_first_call = .false.
+  endif
   call ESMF_GridCompGet(gcomp, name=cname, clock=clock, grid=gridIn,&
                         importState=importState, vm=vm, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
@@ -843,23 +845,6 @@ module mod_esmf_ocn
 !
     bi = 1
     bj = 1
-!
-    ! where (ieee_is_nan(ptr_lwup)) ptr_lwup = MISSING_R8
-    ! where (ieee_is_nan(ptr_lwdn)) ptr_lwdn = MISSING_R8
-    ! where (ieee_is_nan(ptr_swup)) ptr_swup = MISSING_R8
-    ! where (ieee_is_nan(ptr_swdn)) ptr_swdn = MISSING_R8
-    ! where (ieee_is_nan(ptr_hl)) ptr_hl = MISSING_R8
-    ! where (ieee_is_nan(ptr_hs)) ptr_hs = MISSING_R8
-    ! where (ieee_is_nan(ptr_u10)) ptr_u10 = MISSING_R8
-    ! where (ieee_is_nan(ptr_v10)) ptr_v10 = MISSING_R8
-    ! where (ieee_is_nan(ptr_t2)) ptr_t2 = MISSING_R8
-    ! where (ieee_is_nan(ptr_q2)) ptr_q2 = MISSING_R8
-    ! where (ieee_is_nan(ptr_evap)) ptr_evap = MISSING_R8
-    ! where (ieee_is_nan(ptr_raincv)) ptr_raincv = MISSING_R8
-    ! where (ieee_is_nan(ptr_rainshv)) ptr_rainshv = MISSING_R8
-    ! where (ieee_is_nan(ptr_rainncv)) ptr_rainncv = MISSING_R8
-    ! ptr = MISSING_R8
-!
     do jj = 1-OLy, sNy+OLy
       do ii = 1-OLx, sNx+OLx
         imin = myXGlobalLo-1+(bi-1)*sNx
@@ -958,16 +943,16 @@ module mod_esmf_ocn
   end if
 !
 
-  DEALLOCATE(swdown_ESMF)
-  DEALLOCATE(lwdown_ESMF)
-  DEALLOCATE(hl_ESMF)
-  DEALLOCATE(hs_ESMF)
-  DEALLOCATE(uwind_ESMF)
-  DEALLOCATE(vwind_ESMF)
-  DEALLOCATE(atemp_ESMF)
-  DEALLOCATE(aqh_ESMF)
-  DEALLOCATE(evap_ESMF)
-  DEALLOCATE(precip_ESMF)
+  !DEALLOCATE(swdown_ESMF)
+  !DEALLOCATE(lwdown_ESMF)
+  !DEALLOCATE(hl_ESMF)
+  !DEALLOCATE(hs_ESMF)
+  !DEALLOCATE(uwind_ESMF)
+  !DEALLOCATE(vwind_ESMF)
+  !DEALLOCATE(atemp_ESMF)
+  !DEALLOCATE(aqh_ESMF)
+  !DEALLOCATE(evap_ESMF)
+  !DEALLOCATE(precip_ESMF)
 
   end subroutine OCN_Get
 !
@@ -1016,9 +1001,6 @@ module mod_esmf_ocn
   type(ESMF_Field) :: field_voce
   type(ESMF_Field) :: field_sst_input
   type(ESMF_State) :: importState, exportState
-  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: theta_ESMF
-  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: uoce_ESMF
-  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: voce_ESMF
 !
   INTEGER sNx, sNy, OLx, OLy, nSx, nSy, nPx, nPy, Nx, Ny, Nr
   INTEGER myXGlobalLo, myYGlobalLo
@@ -1030,14 +1012,16 @@ module mod_esmf_ocn
 ! Get ESMF domain size info
 !-------------------------------------------------------------------
 !
-  PRINT *, "PUTTING OCN DATA"
   call get_domain_size(sNx, sNy, OLx, OLy,                          &
                        nSx, nSy, nPx, nPy, Nx, Ny, Nr,              &
                        myXGlobalLo, myYGlobalLo)
 
-  ALLOCATE(theta_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
-  ALLOCATE(uoce_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
-  ALLOCATE(voce_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+  if (ocn_put_first_call) then
+    ALLOCATE(theta_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+    ALLOCATE(uoce_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+    ALLOCATE(voce_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+    ocn_put_first_call = .false.
+  endif
 
   call get_theta(theta_ESMF, myThid)
   call get_uvoce(uoce_ESMF, voce_ESMF, myThid)
@@ -1148,9 +1132,9 @@ module mod_esmf_ocn
 !
   end do
 !
-  DEALLOCATE(theta_ESMF)
-  DEALLOCATE(uoce_ESMF)
-  DEALLOCATE(voce_ESMF)
+  !DEALLOCATE(theta_ESMF)
+  !DEALLOCATE(uoce_ESMF)
+  !DEALLOCATE(voce_ESMF)
 !
   end subroutine OCN_Put
 !

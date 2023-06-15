@@ -78,7 +78,6 @@
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
             line=__LINE__, file=FILENAME)) return
 
-        PRINT *, "DebugLevel now is: ", debugLevel
 
         ! Set simulation start/stop time 
         call ESMF_ConfigGetAttribute(cf, start_year,                    &
@@ -152,7 +151,6 @@
       do iEntry = 1, nList
         entryName = trim(nuopc_entryNameList(iEntry));
         entryUnit = trim(nuopc_entryUnitList(iEntry));
-        PRINT *, "entry name is: ", trim(entryName)
         call NUOPC_FieldDictionaryAddEntry(entryName, &
                 canonicalUnits=entryUnit, rc=rc)
       end do

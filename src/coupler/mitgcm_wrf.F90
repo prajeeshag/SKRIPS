@@ -91,7 +91,6 @@
 !     Initialize component
 !-----------------------------------------------------------------------
 !
-      print *, "calling main init function"
       call ESMF_GridCompInitialize(esmComp, userRc=urc, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
           line=__LINE__, file=__FILE__))                                &
@@ -104,7 +103,6 @@
 !     Run component 
 !-----------------------------------------------------------------------
 !
-      print *, "calling main run function"
       call ESMF_GridCompRun(esmComp, userRc=urc, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
           line=__LINE__, file=__FILE__))                                &
@@ -117,7 +115,6 @@
 !     Finalize component 
 !-----------------------------------------------------------------------
 !
-      print *, "calling main finalize function"
       call ESMF_GridCompFinalize(esmComp, userRc=urc, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
           line=__LINE__, file=__FILE__))                                &
