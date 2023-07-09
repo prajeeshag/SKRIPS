@@ -1,0 +1,75 @@
+#!EmPy
+# Cylc Suit for running SKRIPPS AP4km2km 20 year ERA-GLORIS
+# Author: Prajeesh
+
+@{
+WPS_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WPS"
+WRF_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WRF"
+ENV_FILE="/lustre2/project/k1028/pag/s2s/env.shaheen_intel"
+SKRIPS_EXE="/lustre2/project/k1028/pag/s2s/"
+ISODATETIME="/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime"
+ERADATADIR="/project/k1254/hari/datasets/era_data/1959-2022"
+
+UNGRIB_EXE=WPS_PATH+"/ungrib.exe"
+METGRID_DIR=WPS_PATH+"/metgrid"
+METGRID_EXE=METGRID_DIR+"/metgrid.exe"
+LINK_GRIB=WPS_PATH+"/link_grib.csh"
+REAL_EXE=WRF_PATH+"/main/real.exe"
+
+RUNCYCLE="P20D"
+
+}
+
+
+[scheduling]
+  initial cycle point = 2000-01-01
+  final cycle point = 2001-01-01
+  [[graph]]
+    @RUNCYCLE = """
+          ungrib_metgrid => run_real => run_wrf
+        """
+[runtime]
+  [[ungrib_metgrid]]
+    script = """
+
+      NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
+      RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
+      RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
+      if [[ "$RUN_DURATION_HOURS_FINAL" -lt "$RUN_DURATION_HOURS" ]]; then
+        RUN_DURATION_HOURS=$RUN_DURATION_HOURS_FINAL
+      fi
+      if [[ $RUN_DURATION_HOURS -eq "0" ]]; then
+        echo "Reached final cycling point nothing to do.."
+        exit
+      fi
+
+      echo $NEXT_CYCLE_POINT $RUN_DURATION_HOURS $NEXT_CYCLE_POINT
+
+      """
+    platform = shaheen
+
+  [[run_real]]
+        script = """
+          NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
+          RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
+          echo run_real $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
+        """
+
+  [[run_wrf]]
+        script = """
+          NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
+          RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
+          echo run_wrf $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
+        """
+   #      [[[directives]]]
+   #          --ntasks=32
+   #
+  [[root]]
+    work sub-directory = $CYLC_TASK_CYCLE_POINT/
+      [[[environment]]]
+        RUNCYCLE=@RUNCYCLE
+        ISODATETIME=@ISODATETIME
+  #     [[[directives]]]
+  #         --account = k1028
+  #         --partition = debug
+  #         --nodes = 1
