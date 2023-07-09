@@ -32,7 +32,7 @@ CPL_TIME_STEP="60"
   final cycle point = 2000-01-07
   [[graph]]
     @RUNCYCLE = """
-          setup_rundir => run_real => run_wrf
+          run_real[-@RUNCYCLE]=> setup_rundir => run_real => run_wrf
         """
 [runtime]
   [[setup_rundir]]
@@ -60,7 +60,7 @@ CPL_TIME_STEP="60"
 
       RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc -l )
       export startTime=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} --as-total S)
-      export start_date=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
+      export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
       export endTime=$(echo "$RUN_DURATION_SECONDS + $startTime" | bc -l)
       export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc -l)
       export deltaT=$OCN_TIME_STEP
@@ -72,9 +72,9 @@ CPL_TIME_STEP="60"
       export end_month=$($ISODATETIME ${END_DATE} -f MM)
       export end_day=$($ISODATETIME ${END_DATE} -f DD)
       export history_interval=$OUTPUT_FREQ_MINUTES
-      export restart=".false."
+      export restart=".true."
       if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
-        export restart=".true."
+        export restart=".false."
       fi
       export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc -l )
       export time_step=$ATM_TIME_STEP
@@ -83,19 +83,24 @@ CPL_TIME_STEP="60"
       envsubst < data_template > data
       envsubst < data.cal_template > data.cal
       envsubst < namelist.rc_template > namelist.rc
+
+      ln -sf $ERA_DATA/met*.nc .
       """
     platform = shaheen_login
 
   [[run_real]]
-        script = """
-          NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
-          RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
-          echo run_real $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
+    script = """
+            source $ENV_FILE
+            srun $REAL_EXE
         """
-    platform = shaheen_login
+    platform = shaheen
+    [[[directives]]]
+        --partition = workq
+        --nodes = 50
+        --ntasks-per-node = 32
 
   [[run_wrf]]
-        script = """
+    script = """
           NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
           RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
           echo run_wrf $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
@@ -114,6 +119,9 @@ CPL_TIME_STEP="60"
         ATM_TIME_STEP=@ATM_TIME_STEP
         OCN_TIME_STEP=@OCN_TIME_STEP
         CPL_TIME_STEP=@CPL_TIME_STEP
+        ERA_DATA=@ERA_DATA
+        ENV_FILE=@ENV_FILE
+        REAL_EXE=@REAL_EXE
   #     [[[directives]]]
   #         --account = k1028
   #         --partition = debug
