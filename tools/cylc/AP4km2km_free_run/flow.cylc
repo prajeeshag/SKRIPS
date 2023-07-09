@@ -8,7 +8,10 @@ WRF_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WRF"
 ENV_FILE="/lustre2/project/k1028/pag/s2s/env.shaheen_intel"
 SKRIPS_EXE="/lustre2/project/k1028/pag/s2s/"
 ISODATETIME="/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime"
-ERADATADIR="/project/k1254/hari/datasets/era_data/1959-2022"
+
+SETUP_DIR="/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun"
+ERA_DATA=SETUP_DIR+"/ERA_metgrid"
+SETUP_RUN_DIR=SETUP_DIR+"/RUN"
 
 UNGRIB_EXE=WPS_PATH+"/ungrib.exe"
 METGRID_DIR=WPS_PATH+"/metgrid"
@@ -16,37 +19,72 @@ METGRID_EXE=METGRID_DIR+"/metgrid.exe"
 LINK_GRIB=WPS_PATH+"/link_grib.csh"
 REAL_EXE=WRF_PATH+"/main/real.exe"
 
-RUNCYCLE="P20D"
-
+RUNCYCLE="P2D"
+OUTPUT_FREQ_MINUTES="180"
+ATM_TIME_STEP="20"
+OCN_TIME_STEP="60"
+CPL_TIME_STEP="60"
 }
 
 
 [scheduling]
   initial cycle point = 2000-01-01
-  final cycle point = 2001-01-01
+  final cycle point = 2000-01-07
   [[graph]]
     @RUNCYCLE = """
-          ungrib_metgrid => run_real => run_wrf
+          setup_rundir => run_real => run_wrf
         """
 [runtime]
-  [[ungrib_metgrid]]
+  [[setup_rundir]]
     script = """
 
       NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
       RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
       RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
-      if [[ "$RUN_DURATION_HOURS_FINAL" -lt "$RUN_DURATION_HOURS" ]]; then
+      
+      END_DATE=${NEXT_CYCLE_POINT}
+      result=$(echo "$RUN_DURATION_HOURS_FINAL < $RUN_DURATION_HOURS" | bc -l)
+      if [ "$result" -eq 1 ]; then
+        END_DATE=${CYLC_WORKFLOW_FINAL_CYCLE_POINT}
         RUN_DURATION_HOURS=$RUN_DURATION_HOURS_FINAL
       fi
-      if [[ $RUN_DURATION_HOURS -eq "0" ]]; then
+
+      result=$(echo "$RUN_DURATION_HOURS == 0" | bc -l)
+      if [[ $result -eq 1 ]]; then
         echo "Reached final cycling point nothing to do.."
         exit
       fi
-
       echo $NEXT_CYCLE_POINT $RUN_DURATION_HOURS $NEXT_CYCLE_POINT
 
+      ln -sf $SETUP_RUN_DIR/* .
+
+      RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc -l )
+      export startTime=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} --as-total S)
+      export start_date=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
+      export endTime=$(echo "$RUN_DURATION_SECONDS + $startTime" | bc -l)
+      export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc -l)
+      export deltaT=$OCN_TIME_STEP
+
+      export start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
+      export start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
+      export start_day=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f DD)
+      export end_year=$($ISODATETIME ${END_DATE} -f CCYY)
+      export end_month=$($ISODATETIME ${END_DATE} -f MM)
+      export end_day=$($ISODATETIME ${END_DATE} -f DD)
+      export history_interval=$OUTPUT_FREQ_MINUTES
+      export restart=".false."
+      if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
+        export restart=".true."
+      fi
+      export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc -l )
+      export time_step=$ATM_TIME_STEP
+
+      envsubst < namelist.input_template > namelist.input
+      envsubst < data_template > data
+      envsubst < data.cal_template > data.cal
+      envsubst < namelist.rc_template > namelist.rc
       """
-    platform = shaheen
+    platform = shaheen_login
 
   [[run_real]]
         script = """
@@ -54,6 +92,7 @@ RUNCYCLE="P20D"
           RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
           echo run_real $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
         """
+    platform = shaheen_login
 
   [[run_wrf]]
         script = """
@@ -61,6 +100,7 @@ RUNCYCLE="P20D"
           RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
           echo run_wrf $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
         """
+    platform = shaheen_login
    #      [[[directives]]]
    #          --ntasks=32
    #
@@ -69,6 +109,11 @@ RUNCYCLE="P20D"
       [[[environment]]]
         RUNCYCLE=@RUNCYCLE
         ISODATETIME=@ISODATETIME
+        SETUP_RUN_DIR=@SETUP_RUN_DIR
+        OUTPUT_FREQ_MINUTES=@OUTPUT_FREQ_MINUTES
+        ATM_TIME_STEP=@ATM_TIME_STEP
+        OCN_TIME_STEP=@OCN_TIME_STEP
+        CPL_TIME_STEP=@CPL_TIME_STEP
   #     [[[directives]]]
   #         --account = k1028
   #         --partition = debug
