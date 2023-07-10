@@ -3,10 +3,11 @@
 # Author: Prajeesh
 
 @{
+ARCHIVE_PATH="/lustre2/project/k1028/pag/ARCHIVE/AP4km2km_FreeRun"
 WPS_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WPS"
 WRF_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WRF"
 ENV_FILE="/lustre2/project/k1028/pag/s2s/env.shaheen_intel"
-SKRIPS_EXE="/lustre2/project/k1028/pag/s2s/"
+SKRIPS_EXE="/project/k1028/pag/s2s/SKRIPS/build/AP4km2km/438/main/skrips.exe"
 ISODATETIME="/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime"
 
 SETUP_DIR="/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun"
@@ -28,101 +29,142 @@ CPL_TIME_STEP="60"
 
 
 [scheduling]
-  initial cycle point = 2000-01-01
-  final cycle point = 2000-01-07
-  [[graph]]
-    @RUNCYCLE = """
-          run_real[-@RUNCYCLE]=> setup_rundir => run_real => run_wrf
+    initial cycle point = 2000-01-01
+    final cycle point = 2000-01-06
+    [[graph]]
+        @RUNCYCLE = """
+            run_real[-@RUNCYCLE]=> setup_rundir 
+            setup_rundir => run_real
+            run_skrips[-@RUNCYCLE]:submitted => run_real
+            run_real => run_skrips
+            mv_restarts[-@RUNCYCLE] => run_skrips
+            run_skrips => mv_restarts
+            run_skrips => mv_outputs
+            mv_outputs & mv_restarts => scrap_rundir
         """
 [runtime]
-  [[setup_rundir]]
-    script = """
+    [[root]]
+        work sub-directory = $CYLC_TASK_CYCLE_POINT/
+        [[[environment]]]
+            RUNCYCLE=@RUNCYCLE
+            ISODATETIME=@ISODATETIME
+            SETUP_RUN_DIR=@SETUP_RUN_DIR
+            OUTPUT_FREQ_MINUTES=@OUTPUT_FREQ_MINUTES
+            ATM_TIME_STEP=@ATM_TIME_STEP
+            OCN_TIME_STEP=@OCN_TIME_STEP
+            CPL_TIME_STEP=@CPL_TIME_STEP
+            ERA_DATA=@ERA_DATA
+            ENV_FILE=@ENV_FILE
+            REAL_EXE=@REAL_EXE
+            SKRIPS_EXE=@SKRIPS_EXE
+            ARCHIVE_PATH=@ARCHIVE_PATH
 
-      NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
-      RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
-      RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
-      
-      END_DATE=${NEXT_CYCLE_POINT}
-      result=$(echo "$RUN_DURATION_HOURS_FINAL < $RUN_DURATION_HOURS" | bc -l)
-      if [ "$result" -eq 1 ]; then
-        END_DATE=${CYLC_WORKFLOW_FINAL_CYCLE_POINT}
-        RUN_DURATION_HOURS=$RUN_DURATION_HOURS_FINAL
-      fi
 
-      result=$(echo "$RUN_DURATION_HOURS == 0" | bc -l)
-      if [[ $result -eq 1 ]]; then
-        echo "Reached final cycling point nothing to do.."
-        exit
-      fi
-      echo $NEXT_CYCLE_POINT $RUN_DURATION_HOURS $NEXT_CYCLE_POINT
+    [[mv_restarts]]
+        script = """
+            echo "Move restart files"
+            mkdir -p $ARCHIVE_PATH/RESTARTS
+            cp wrfrst_* pickup.* $ARCHIVE_PATH/RESTARTS && rm -f wrfrst_* pickup.*
+        """
+        platform=shaheen_login
 
-      ln -sf $SETUP_RUN_DIR/* .
+    [[mv_outputs]]
+        script = """
+            echo "Move Outputs"
+            mkdir -p $ARCHIVE_PATH/OUTPUTS/ATM
+            mkdir -p $ARCHIVE_PATH/OUTPUTS/OCN
+            mkdir -p $ARCHIVE_PATH/OUTPUTS/LOG
+            cp wrfout_* $ARCHIVE_PATH/OUTPUTS/ATM && rm -f wrfout_* 
+            cp *.data *.meta $ARCHIVE_PATH/OUTPUTS/OCN && rm -f *.data *.meta
+            cp PET*.ESMF_LogFile STDERR.* STDOUT.* $ARCHIVE_PATH/OUTPUTS/LOG
+        """
+        platform=shaheen_login
 
-      RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc -l )
-      export startTime=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} --as-total S)
-      export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
-      export endTime=$(echo "$RUN_DURATION_SECONDS + $startTime" | bc -l)
-      export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc -l)
-      export deltaT=$OCN_TIME_STEP
+    [[scrap_rundir]]
+        script = """
+            echo "Scrap run directory"
+            rm -rf *
+        """
+        platform=shaheen_login
 
-      export start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
-      export start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
-      export start_day=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f DD)
-      export end_year=$($ISODATETIME ${END_DATE} -f CCYY)
-      export end_month=$($ISODATETIME ${END_DATE} -f MM)
-      export end_day=$($ISODATETIME ${END_DATE} -f DD)
-      export history_interval=$OUTPUT_FREQ_MINUTES
-      export restart=".true."
-      if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
-        export restart=".false."
-      fi
-      export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc -l )
-      export time_step=$ATM_TIME_STEP
+    [[setup_rundir]]
+        script = """
 
-      envsubst < namelist.input_template > namelist.input
-      envsubst < data_template > data
-      envsubst < data.cal_template > data.cal
-      envsubst < namelist.rc_template > namelist.rc
+            NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
+            RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
+            RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
 
-      ln -sf $ERA_DATA/met*.nc .
-      """
-    platform = shaheen_login
+            END_DATE=${NEXT_CYCLE_POINT}
+            result=$(echo "$RUN_DURATION_HOURS_FINAL < $RUN_DURATION_HOURS" | bc -l)
+            if [ "$result" -eq 1 ]; then
+              END_DATE=${CYLC_WORKFLOW_FINAL_CYCLE_POINT}
+              RUN_DURATION_HOURS=$RUN_DURATION_HOURS_FINAL
+            fi
 
-  [[run_real]]
-    script = """
+            result=$(echo "$RUN_DURATION_HOURS == 0" | bc -l)
+            if [[ $result -eq 1 ]]; then
+              echo "Reached final cycling point nothing to do.."
+              exit
+            fi
+            echo $NEXT_CYCLE_POINT $RUN_DURATION_HOURS $NEXT_CYCLE_POINT
+
+            ln -sf $SETUP_RUN_DIR/* .
+
+            RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc -l )
+            export startTime=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} --as-total S)
+            export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
+            export endTime=$(echo "$RUN_DURATION_SECONDS + $startTime" | bc -l)
+            export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc -l)
+            export chkptFreq=$RUN_DURATION_SECONDS
+            export deltaT=$OCN_TIME_STEP
+
+            export start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
+            export start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
+            export start_day=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f DD)
+            export end_year=$($ISODATETIME ${END_DATE} -f CCYY)
+            export end_month=$($ISODATETIME ${END_DATE} -f MM)
+            export end_day=$($ISODATETIME ${END_DATE} -f DD)
+            export history_interval=$OUTPUT_FREQ_MINUTES
+            export restart=".true."
+            if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
+              export restart=".false."
+            fi
+            export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc -l )
+            export time_step=$ATM_TIME_STEP
+
+            envsubst < namelist.input_template > namelist.input
+            envsubst < data_template > data
+            envsubst < data.cal_template > data.cal
+            envsubst < namelist.rc_template > namelist.rc
+            mkdir -p $ARCHIVE_PATH/RESTARTS
+
+            ln -sf $ARCHIVE_PATH/RESTARTS/* .
+        """
+        platform = shaheen_login
+
+    [[run_real]]
+        script = """
             source $ENV_FILE
+            ln -sf $ERA_DATA/met*.nc .
             srun $REAL_EXE
+            rm -rf met*.nc
         """
-    platform = shaheen
-    [[[directives]]]
-        --partition = workq
-        --nodes = 50
-        --ntasks-per-node = 32
+        platform = shaheen
+        [[[directives]]]
+            --partition = workq
+            --nodes = 50
+            --ntasks-per-node=32
+            --time=24:00:00
 
-  [[run_wrf]]
-    script = """
-          NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
-          RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
-          echo run_wrf $NEXT_CYCLE_POINT $RUN_DURATION_HOURS
+    [[run_skrips]]
+        script = """
+            source $ENV_FILE
+            srun --ntasks 2038 $SKRIPS_EXE
         """
-    platform = shaheen_login
-   #      [[[directives]]]
-   #          --ntasks=32
-   #
-  [[root]]
-    work sub-directory = $CYLC_TASK_CYCLE_POINT/
-      [[[environment]]]
-        RUNCYCLE=@RUNCYCLE
-        ISODATETIME=@ISODATETIME
-        SETUP_RUN_DIR=@SETUP_RUN_DIR
-        OUTPUT_FREQ_MINUTES=@OUTPUT_FREQ_MINUTES
-        ATM_TIME_STEP=@ATM_TIME_STEP
-        OCN_TIME_STEP=@OCN_TIME_STEP
-        CPL_TIME_STEP=@CPL_TIME_STEP
-        ERA_DATA=@ERA_DATA
-        ENV_FILE=@ENV_FILE
-        REAL_EXE=@REAL_EXE
-  #     [[[directives]]]
-  #         --account = k1028
-  #         --partition = debug
-  #         --nodes = 1
+        platform = shaheen
+        [[[directives]]]
+            --partition = workq
+            --nodes = 64
+            --ntasks = 2038
+            --time=24:00:00
+
