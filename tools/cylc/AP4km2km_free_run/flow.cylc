@@ -1,7 +1,9 @@
 #!EmPy
 # Cylc Suit for running SKRIPPS AP4km2km 20 year ERA-GLORIS
 # Author: Prajeesh
-
+#
+# NOTE:
+#   Mininum RUNCYCLE should be P1D
 @{
 ARCHIVE_PATH="/lustre2/project/k1028/pag/ARCHIVE/AP4km2km_FreeRun"
 WPS_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WPS"
@@ -21,6 +23,8 @@ METGRID_EXE=METGRID_DIR+"/metgrid.exe"
 LINK_GRIB=WPS_PATH+"/link_grib.csh"
 REAL_EXE=WRF_PATH+"/main/real.exe"
 
+# Run 1 hour extra because WRF sometimes fails to write restart files
+OFFSETHOURS="1"
 RUNCYCLE="P2D"
 OUTPUT_FREQ_MINUTES="180"
 ATM_TIME_STEP="20"
@@ -58,6 +62,7 @@ CPL_TIME_STEP="300"
             SKRIPS_EXE=@SKRIPS_EXE
             ARCHIVE_PATH=@ARCHIVE_PATH
             GLORYS_DATA=@GLORYS_DATA
+            OFFSETHOURS=@OFFSETHOURS
 
     [[archive_real_out]]
         script = """
@@ -151,6 +156,8 @@ CPL_TIME_STEP="300"
               RUN_DURATION_HOURS=$RUN_DURATION_HOURS_FINAL
             fi
 
+            RUN_HOURS=$( echo "$RUN_DURATION_HOURS + $OFFSETHOURS" | bc ) 
+
             result=$(echo "$RUN_DURATION_HOURS == 0" | bc -l)
             if [[ $result -eq 1 ]]; then
               echo "Reached final cycling point nothing to do.."
@@ -158,20 +165,23 @@ CPL_TIME_STEP="300"
             fi
             echo $NEXT_CYCLE_POINT $RUN_DURATION_HOURS $NEXT_CYCLE_POINT
 
-            RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc -l )
+            RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc)
+            RUN_SECONDS=$(echo "$RUN_HOURS*3600" | bc)
             export startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
             export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
-            export endTime=$(echo "$RUN_DURATION_SECONDS + $startTime" | bc -l)
-            export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc -l)
+            export endTime=$(echo "$RUN_SECONDS + $startTime" | bc)
+            export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc)
             export chkptFreq=$RUN_DURATION_SECONDS
             export deltaT=$OCN_TIME_STEP
 
             export start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
             export start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
             export start_day=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f DD)
+            export start_hour=0
             export end_year=$($ISODATETIME ${END_DATE} -f CCYY)
             export end_month=$($ISODATETIME ${END_DATE} -f MM)
             export end_day=$($ISODATETIME ${END_DATE} -f DD)
+            export end_hour=$OFFSETHOURS
             export history_interval=$OUTPUT_FREQ_MINUTES
             export restart=".true."
             if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
