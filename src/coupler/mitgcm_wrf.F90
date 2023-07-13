@@ -31,7 +31,7 @@
 !     Initialize ESMF framework
 !-----------------------------------------------------------------------
 !
-      call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI,              &
+      call ESMF_Initialize(logkindflag=ESMF_LOGKIND_NONE,              &
                            defaultCalkind=ESMF_CALKIND_GREGORIAN,       &
                            vm=vm, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
