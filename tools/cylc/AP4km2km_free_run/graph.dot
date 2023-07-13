@@ -1,0 +1,81 @@
+digraph {
+    graph [fontname = "sans"; fontsize = "25";];
+    node [fontname = "sans";];
+    edge [color = green;];
+    subgraph "cluster_20000101T0000Z" {
+        label = "20000101T0000Z";
+        style = "dashed";
+        "20000101T0000Z/archive_outputs" [label = "archive_outputs\n20000101T0000Z";];
+        "20000101T0000Z/archive_real_out" [label = "archive_real_out\n20000101T0000Z";];
+        "20000101T0000Z/archive_restarts" [label = "archive_restarts\n20000101T0000Z";];
+        "20000101T0000Z/link_real_out" [label = "link_real_out\n20000101T0000Z";];
+        "20000101T0000Z/link_restarts" [label = "link_restarts\n20000101T0000Z";];
+        "20000101T0000Z/run_real" [label = "run_real\n20000101T0000Z";];
+        "20000101T0000Z/run_skrips" [label = "run_skrips\n20000101T0000Z";];
+        "20000101T0000Z/scrap_rundir" [label = "scrap_rundir\n20000101T0000Z";];
+        "20000101T0000Z/setup_rundir" [label = "setup_rundir\n20000101T0000Z";];
+    }
+    
+    subgraph "cluster_20000103T0000Z" {
+        label = "20000103T0000Z";
+        style = "dashed";
+        "20000103T0000Z/archive_outputs" [label = "archive_outputs\n20000103T0000Z";];
+        "20000103T0000Z/archive_real_out" [label = "archive_real_out\n20000103T0000Z";];
+        "20000103T0000Z/archive_restarts" [label = "archive_restarts\n20000103T0000Z";];
+        "20000103T0000Z/link_real_out" [label = "link_real_out\n20000103T0000Z";];
+        "20000103T0000Z/link_restarts" [label = "link_restarts\n20000103T0000Z";];
+        "20000103T0000Z/run_real" [label = "run_real\n20000103T0000Z";];
+        "20000103T0000Z/run_skrips" [label = "run_skrips\n20000103T0000Z";];
+        "20000103T0000Z/scrap_rundir" [label = "scrap_rundir\n20000103T0000Z";];
+        "20000103T0000Z/setup_rundir" [label = "setup_rundir\n20000103T0000Z";];
+    }
+    
+    subgraph "cluster_20000105T0000Z" {
+        label = "20000105T0000Z";
+        style = "dashed";
+        "20000105T0000Z/archive_outputs" [label = "archive_outputs\n20000105T0000Z";];
+        "20000105T0000Z/archive_real_out" [label = "archive_real_out\n20000105T0000Z";];
+        "20000105T0000Z/archive_restarts" [label = "archive_restarts\n20000105T0000Z";];
+        "20000105T0000Z/link_real_out" [label = "link_real_out\n20000105T0000Z";];
+        "20000105T0000Z/link_restarts" [label = "link_restarts\n20000105T0000Z";];
+        "20000105T0000Z/run_real" [label = "run_real\n20000105T0000Z";];
+        "20000105T0000Z/run_skrips" [label = "run_skrips\n20000105T0000Z";];
+        "20000105T0000Z/scrap_rundir" [label = "scrap_rundir\n20000105T0000Z";];
+        "20000105T0000Z/setup_rundir" [label = "setup_rundir\n20000105T0000Z";];
+    }
+    
+    "20000101T0000Z/archive_outputs" -> "20000101T0000Z/scrap_rundir";
+    "20000101T0000Z/archive_restarts" -> "20000101T0000Z/scrap_rundir";
+    "20000101T0000Z/archive_restarts" -> "20000103T0000Z/link_restarts";
+    "20000101T0000Z/link_real_out" -> "20000101T0000Z/link_restarts";
+    "20000101T0000Z/link_real_out" -> "20000101T0000Z/run_real" [color = "red";];
+    "20000101T0000Z/link_restarts" -> "20000101T0000Z/run_skrips";
+    "20000101T0000Z/run_real" -> "20000101T0000Z/archive_real_out";
+    "20000101T0000Z/run_real" -> "20000101T0000Z/link_restarts";
+    "20000101T0000Z/run_skrips" -> "20000101T0000Z/archive_outputs";
+    "20000101T0000Z/run_skrips" -> "20000101T0000Z/archive_restarts";
+    "20000101T0000Z/run_skrips" -> "20000103T0000Z/setup_rundir" [color = "blue";];
+    "20000101T0000Z/setup_rundir" -> "20000101T0000Z/link_real_out";
+    "20000103T0000Z/archive_outputs" -> "20000103T0000Z/scrap_rundir";
+    "20000103T0000Z/archive_restarts" -> "20000103T0000Z/scrap_rundir";
+    "20000103T0000Z/archive_restarts" -> "20000105T0000Z/link_restarts";
+    "20000103T0000Z/link_real_out" -> "20000103T0000Z/link_restarts";
+    "20000103T0000Z/link_real_out" -> "20000103T0000Z/run_real" [color = "red";];
+    "20000103T0000Z/link_restarts" -> "20000103T0000Z/run_skrips";
+    "20000103T0000Z/run_real" -> "20000103T0000Z/archive_real_out";
+    "20000103T0000Z/run_real" -> "20000103T0000Z/link_restarts";
+    "20000103T0000Z/run_skrips" -> "20000103T0000Z/archive_outputs";
+    "20000103T0000Z/run_skrips" -> "20000103T0000Z/archive_restarts";
+    "20000103T0000Z/run_skrips" -> "20000105T0000Z/setup_rundir" [color = "blue";];
+    "20000103T0000Z/setup_rundir" -> "20000103T0000Z/link_real_out";
+    "20000105T0000Z/archive_outputs" -> "20000105T0000Z/scrap_rundir";
+    "20000105T0000Z/archive_restarts" -> "20000105T0000Z/scrap_rundir";
+    "20000105T0000Z/link_real_out" -> "20000105T0000Z/link_restarts";
+    "20000105T0000Z/link_real_out" -> "20000105T0000Z/run_real" [color = "red";];
+    "20000105T0000Z/link_restarts" -> "20000105T0000Z/run_skrips";
+    "20000105T0000Z/run_real" -> "20000105T0000Z/archive_real_out";
+    "20000105T0000Z/run_real" -> "20000105T0000Z/link_restarts";
+    "20000105T0000Z/run_skrips" -> "20000105T0000Z/archive_outputs";
+    "20000105T0000Z/run_skrips" -> "20000105T0000Z/archive_restarts";
+    "20000105T0000Z/setup_rundir" -> "20000105T0000Z/link_real_out";
+}
