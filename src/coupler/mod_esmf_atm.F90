@@ -1,572 +1,1045 @@
-!-----------------------------------------------------------------------
-! Earth System Modeling Framework
-! Copyright 2002-2017, University Corporation for Atmospheric Research,
-! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
-! Laboratory, University of Michigan, National Centers for Environmental
-! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
-! NASA Goddard Space Flight Center.
-! Licensed under the University of Illinois-NCSA License.
-#define FILENAME "mod_esmf_atm.F90"
+#define FILENAME "mod_esmf_ocn.F90"
 !
 !-----------------------------------------------------------------------
 !     ATM gridded component code 
 !-----------------------------------------------------------------------
 !
-      module mod_esmf_atm
+module mod_esmf_atm
 !
 !-----------------------------------------------------------------------
 !     Used module declarations 
 !-----------------------------------------------------------------------
 !
-      use ESMF
-      use NUOPC
-      use NUOPC_Model,                                                  &
-          NUOPC_SetServices          => SetServices,                    &
-          NUOPC_Label_SetClock       => label_SetClock,                 &
-          NUOPC_Label_Advance        => label_Advance,                  &
-          NUOPC_Label_DataInitialize => label_DataInitialize
+  use ESMF
+  use NUOPC
+  use NUOPC_Model,                                                  &
+      NUOPC_SetServices          => SetServices,                    &
+      NUOPC_Label_SetClock       => label_SetClock,                 &
+      NUOPC_Label_Advance        => label_Advance,                  &
+      NUOPC_Label_DataInitialize => label_DataInitialize
+
+  use module_wrf_top, only : wrf_init, wrf_run, wrf_finalize
+  use module_domain, only : head_grid, get_ijk_from_grid
+
+  use ieee_arithmetic, only : ieee_is_nan
+  use mod_types, only: ocnTimeStep
+
+  implicit none
+
+  private
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: swdown_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: lwdown_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: hl_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: hs_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: uwind_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: vwind_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: atemp_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: aqh_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: evap_ESMF
+  REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: precip_ESMF
+
+  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: theta_ESMF
+  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: uoce_ESMF
+  REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: voce_ESMF
+
+  logical :: ocn_get_first_call = .true.
+  logical :: ocn_put_first_call = .true.
+
+  public :: ATM_SetServices
 !
-      use mod_types
-      use module_wrf_top, only : wrf_init, wrf_run, wrf_finalize
-      use module_domain, only : head_grid, get_ijk_from_grid
-      use module_state_description
-      use module_streams
-
-      use module_esmf_extensions
-      use module_metadatautils, only : AttachTimesToState
-      use module_metadatautils, only : AttachDecompToState
-
-      USE module_ext_esmf, only : ESMF_GridHandle => grid
+  contains
 !
-      implicit none
-      private
-!
-!-----------------------------------------------------------------------
-!     Public subroutines 
-!-----------------------------------------------------------------------
-!
-      public :: ATM_SetServices
-!
-      contains
-!
-      subroutine ATM_SetServices(gcomp, rc)
-!
-!-----------------------------------------------------------------------
-!     Imported variable declarations 
-!-----------------------------------------------------------------------
-!
-      type(ESMF_GridComp) :: gcomp
-      integer, intent(out) :: rc
-!
-      rc = ESMF_SUCCESS
 
-      call NUOPC_CompDerive(gcomp, NUOPC_SetServices, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+  subroutine ATM_SetServices(gcomp, rc)
+    type(ESMF_GridComp) :: gcomp
+    integer, intent(out) :: rc
 
-      ! set entry point for methods that require specific implementation
-      call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE,       &
-                                   phaseLabelList=(/"IPDv00p1"/),       &
-                                   userRoutine=ATM_Init1, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+    rc = ESMF_SUCCESS
 
-      call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE,       &
-                                   phaseLabelList=(/"IPDv00p2"/),       &
-                                   userRoutine=ATM_Init2, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+    call NUOPC_CompDerive(gcomp, NUOPC_SetServices, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
 
-      call NUOPC_CompSpecialize(gcomp, specLabel=NUOPC_Label_SetClock,  &
-                                specRoutine=ATM_SetClock, rc = rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+    ! set entry point for methods that require specific implementation
+    call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE,       &
+                               phaseLabelList=(/"IPDv00p1"/),       &
+                               userRoutine=ATM_Init1, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
 
-      call NUOPC_CompSpecialize(gcomp, specLabel=NUOPC_Label_Advance,   &
-                                specRoutine=ATM_Run, rc = rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+    call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE,       &
+                               phaseLabelList=(/"IPDv00p2"/),       &
+                               userRoutine=ATM_Init2, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
 
-      end subroutine ATM_SetServices
-!
-!-----------------------------------------------------------------------
-!     Initialization phase 1, set import/export fields
-!-----------------------------------------------------------------------
-!
-      subroutine ATM_Init1(gcomp, importState, exportState, clock, rc)
+    call NUOPC_CompSpecialize(gcomp, specLabel=NUOPC_Label_SetClock,  &
+                            specRoutine=ATM_SetClock, rc = rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
 
-      TYPE(ESMF_GridComp)  :: gcomp
-      TYPE(ESMF_State)     :: importState, exportState
-      TYPE(ESMF_Clock)     :: clock
+    call NUOPC_CompSpecialize(gcomp, specLabel=NUOPC_Label_Advance,   &
+                            specRoutine=ATM_Run, rc = rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
 
-      TYPE(ESMF_VM) :: vm
-      INTEGER :: mpicomtmp
-      INTEGER,                     INTENT(  OUT) :: rc
+    call ESMF_GridCompSetEntryPoint(gcomp,                            &
+                               methodflag=ESMF_METHOD_FINALIZE,     &
+                               userRoutine=ATM_Final, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
 
-      ! Local variables
-      TYPE(ESMF_GridComp), TARGET :: t_gcomp
-      TYPE(ESMF_State),    TARGET :: t_importState, t_exportState
-      TYPE(ESMF_Clock),    TARGET :: t_clock
-      TYPE(ESMF_GridComp), POINTER :: p_gcomp
-      TYPE(ESMF_State),    POINTER :: p_importState, p_exportState
-      TYPE(ESMF_Clock),    POINTER :: p_clock
-      ! Time hackery
-      TYPE(ESMF_Time) :: startTime
-      TYPE(ESMF_Time) :: stopTime
-      TYPE(ESMF_TimeInterval) :: couplingInterval
-      ! decomposition hackery
-      INTEGER :: ids, ide, jds, jde, kds, kde
-      INTEGER :: ims, ime, jms, jme, kms, kme
-      INTEGER :: ips, ipe, jps, jpe, kps, kpe
-      INTEGER :: domdesc
-      LOGICAL :: bdy_mask(4)
-      CHARACTER(LEN=256) :: couplingIntervalString
-      CHARACTER(LEN=256) :: ofile
-      type(ESMF_Field) :: esmffield
-      character(ESMF_MAXSTR) :: entryNameNUOPC, entryNameWRF
-      integer :: iEntry
-      logical :: exportEntry
-      
-      rc = ESMF_SUCCESS
-
-      t_gcomp = gcomp
-      t_importState = importState
-      t_exportState = exportState
-      t_clock = clock
-
-      p_gcomp => t_gcomp
-      p_importState => t_importState
-      p_exportState => t_exportState
-      p_clock => t_clock
-
-      CALL ESMF_SetCurrent( gcomp=p_gcomp, importState=p_importState, &
-                            exportState=p_exportState, clock=p_clock)
-      
-      CALL ESMF_VMGetCurrent(vm, rc=rc)
-      
-      CALL ESMF_VMGet(vm, mpiCommunicator=mpicomtmp, rc=rc)
-      
-      CALL wrf_set_dm_communicator( mpicomtmp )
-      
-      CALL wrf_init( no_init1=.TRUE. )
-      
-      call ESMF_TimeIntervalSet(couplingInterval, h=1, rc=rc)
-      
-      CALL AttachTimesToState( exportState, esmStartTime, esmStopTime, &
-                               couplingInterval)
-
-      CALL wrf_getDecompInfo( ids, ide, jds, jde, kds, kde, &
-                              ims, ime, jms, jme, kms, kme, &
-                              ips, ipe, jps, jpe, kps, kpe, &
-                              domdesc, bdy_mask )
-      
-      CALL AttachDecompToState( exportState,                  &
-                                ids, ide, jds, jde, kds, kde, &
-                                ims, ime, jms, jme, kms, kme, &
-                                ips, ipe, jps, jpe, kps, kpe, &
-                                domdesc, bdy_mask )
-
-      CALL AttachDecompToState( importState,                  &
-                                ids, ide, jds, jde, kds, kde, &
-                                ims, ime, jms, jme, kms, kme, &
-                                ips, ipe, jps, jpe, kps, kpe, &
-                                domdesc, bdy_mask )
+  end subroutine ATM_SetServices
 
 
-      ! register the WRF entries in ESMF
-      do iEntry = 1, nList
-        entryNameNUOPC = trim(nuopc_entryNameList(iEntry));
-        entryNameWRF = trim(wrf_nameList(iEntry));
-        exportEntry = ATMtoOCN(iEntry);
-        if (exportEntry == .True.) then
-          Call NUOPC_Advertise(exportState, &
-            StandardName=entryNameNUOPC, name=entryNameWRF, rc=rc)
-        else
-          Call NUOPC_Advertise(importState, &
-            StandardName=entryNameNUOPC, name=entryNameWRF, rc=rc)
-        end if
-      end do
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
 
-      end subroutine
-!
-!-----------------------------------------------------------------------
-!     Initialization phase 2 
-!-----------------------------------------------------------------------
-!
-      subroutine ATM_Init2(gcomp, importState, exportState, clock, rc)
+  subroutine ATM_Init1(gcomp, importState, exportState, clock, rc)
+  !
+  !-----------------------------------------------------------------------
+  !     Initialization phase 1, set import/export fields
+  !-----------------------------------------------------------------------
+  !
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
 
-      TYPE(ESMF_GridComp) :: gcomp
-      TYPE(ESMF_State) :: importState, exportState
-      TYPE(ESMF_Clock) :: clock
-      integer, intent(out) :: rc
-
-      TYPE(ESMF_GridComp), TARGET :: t_gcomp
-      TYPE(ESMF_State),    TARGET :: t_importState, t_exportState
-      TYPE(ESMF_Clock),    TARGET :: t_clock
-
-      TYPE(ESMF_GridComp), POINTER :: p_gcomp
-      TYPE(ESMF_State),    POINTER :: p_importState, p_exportState
-      TYPE(ESMF_Clock),    POINTER :: p_clock
-
-      TYPE(ESMF_Time) :: startTime
-      TYPE(ESMF_Time) :: stopTime
-      TYPE(ESMF_TimeInterval) :: couplingInterval
-      ! decomposition hackery
-      INTEGER :: ids, ide, jds, jde, kds, kde
-      INTEGER :: ims, ime, jms, jme, kms, kme
-      INTEGER :: ips, ipe, jps, jpe, kps, kpe
-      INTEGER :: domdesc
-      LOGICAL :: bdy_mask(4)
-      CHARACTER(LEN=256) :: couplingIntervalString
-      CHARACTER(LEN=256) :: ofile
-      INTEGER :: itemCount, i
-      TYPE(ESMF_StateIntent_Flag) :: stateintent
-      CHARACTER (ESMF_MAXSTR) :: statename
-      CHARACTER (ESMF_MAXSTR), ALLOCATABLE :: itemNames(:)
-      TYPE(ESMF_StateItem_Flag), ALLOCATABLE :: itemTypes(:)
-      TYPE(ESMF_Time) :: currentTime, nextTime
-      CHARACTER(LEN=256) :: timeStr
-      INTEGER :: nI, nJ
-
-!
-!-----------------------------------------------------------------------
-!     Local variable declaration
-!-----------------------------------------------------------------------
-!
-      type(ESMF_Field) :: field
-      type(ESMF_DistGrid) :: distGrid
-      type(ESMF_Grid) :: atmGridIn
-      type(ESMF_Grid) :: atmGridOut
-      type(ESMF_Grid) , pointer :: esmfgrid
-
-
-      integer :: myThid = 1
-      integer :: comm, localPet, petCount
-      type(ESMF_Field) :: esmffield
-!
-      type(ESMF_VM) :: vm
-      real(ESMF_KIND_R4), pointer :: ptr_esmffield(:,:)
-
-        CALL get_ijk_from_grid( head_grid ,                   &
-                                ids, ide, jds, jde, kds, kde, &
-                                ims, ime, jms, jme, kms, kme, &
-                                ips, ipe, jps, jpe, kps, kpe  )
-
-      
-      rc = ESMF_SUCCESS
-
-      CALL ESMF_StateGet( exportState, itemCount=itemCount, &
-                          stateintent=stateintent, rc=rc )
-
-      CALL ESMF_StateGet( importState, itemCount=itemCount, &
-                          stateintent=stateintent, rc=rc )
-
-
-      t_gcomp = gcomp
-      t_importState = importState
-      t_exportState = exportState
-      t_clock = clock
-
-      p_gcomp => t_gcomp
-      p_importState => t_importState
-      p_exportState => t_exportState
-      p_clock => t_clock
-
-      CALL ESMF_SetCurrent( gcomp=p_gcomp, importState=p_importState, &
-                            exportState=p_exportState, clock=p_clock)
-
-      CALL wrf_state_populate( rc )
-
-      !! Examine importState
-      CALL ESMF_StateGet( importState, itemCount=itemCount, &
-                          stateintent=stateintent, name=statename, &
-                          rc=rc )
-
-      ALLOCATE ( itemNames(itemCount), itemTypes(itemCount) )
-
-      CALL ESMF_StateGet( importState, itemNameList=itemNames, &
-                          itemtypeList=itemTypes, rc=rc )
-      DEALLOCATE ( itemNames, itemTypes )
-
-      !! Examine exportState
-      CALL ESMF_StateGet( exportState, itemCount=itemCount, &
-                          stateintent=stateintent, name=statename, &
-                          rc=rc )
-
-      ALLOCATE ( itemNames(itemCount), itemTypes(itemCount) )
-
-      CALL ESMF_StateGet( exportState, itemNameList=itemNames, &
-                          itemtypeList=itemTypes, rc=rc )
-      DEALLOCATE ( itemNames, itemTypes )
-
-      !! run an empty step to fill the data
-      CALL ESMF_ClockGet( clock, currTime=currentTime, rc=rc )
-      nextTime = currentTime
-      head_grid%start_subtime = currentTime
-      head_grid%stop_subtime = nextTime
+    character(ESMF_MAXSTR) :: entryNameNUOPC, entryNameWRF
+    integer :: iEntry
+    logical :: exportEntry
   
-      CALL wrf_timetoa ( head_grid%start_subtime, timeStr )
-      CALL wrf_timetoa ( head_grid%stop_subtime, timeStr )
+    rc = ESMF_SUCCESS
 
-      ! run an empty step (for initialization)
-      call wrf_run();
+    ! register the entries in ESMF
+    do iEntry = 1, nList
+      entryNameNUOPC = trim(nuopc_entryNameList(iEntry));
+      entryNameWRF = trim(wrf_nameList(iEntry));
+      exportEntry = OCNtoATM(iEntry);
+      if (exportEntry == .True.) then
+        Call NUOPC_Advertise(exportState, &
+          StandardName=entryNameNUOPC, name=entryNameWRF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+              line=__LINE__, file=FILENAME)) return
+      else
+        Call NUOPC_Advertise(importState, &
+          StandardName=entryNameNUOPC, name=entryNameWRF, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+              line=__LINE__, file=FILENAME)) return
+      end if
+    end do
 
-      end subroutine
+  end subroutine ATM_Init1
+
+
+  subroutine ATM_Init2(gcomp, importState, exportState, clock, rc)
+  !
+  !-----------------------------------------------------------------------
+  !     Initialization phase 2 
+  !-----------------------------------------------------------------------
+  !
+
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+    !
+    !-------------------------------------------------------------------
+    ! Local variable declaration
+    !-------------------------------------------------------------------
+    !
+    integer :: myThid = 1
+    integer :: comm, localPet, petCount
+    character(ESMF_MAXSTR) :: gname
+    type(ESMF_Field) :: field
+    type(ESMF_Grid) :: ocnGridIn
+    type(ESMF_Grid) :: ocnGridOut
 !
-!-----------------------------------------------------------------------
-!     Atmosphere Check Import Fields
-!-----------------------------------------------------------------------
-!
-      subroutine ATM_CheckImport(gcomp, rc)
+    type(ESMF_VM) :: vm
+  
+    rc = ESMF_SUCCESS
+    !
+    !-------------------------------------------------------------------
+    ! Get gridded component
+    !-------------------------------------------------------------------
+    !
+    call ESMF_GridCompGet(gcomp, name=gname, vm=vm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
 
-      type(ESMF_GridComp)  :: gcomp
-      integer, intent(out) :: rc
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount,         &
+                    mpiCommunicator=comm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Initialize the gridded component
+    !-------------------------------------------------------------------
+    !
+    CALL ESMF_VMGetCurrent(vm, rc=rc)
       
-      rc = ESMF_SUCCESS
-
-      end subroutine
-!
-!-----------------------------------------------------------------------
-!     Atmosphere Set Clock  
-!-----------------------------------------------------------------------
-!
-      subroutine ATM_SetClock(gcomp, rc)
-
-      type(ESMF_GridComp)  :: gcomp
-      integer, intent(out) :: rc
-
-      type(ESMF_Clock)     :: clock
-      type(ESMF_Clock)     :: modelClock, driverClock
+    CALL ESMF_VMGet(vm, mpiCommunicator=mpicomtmp, rc=rc)
       
-      rc = ESMF_SUCCESS
+    CALL wrf_set_dm_communicator( mpicomtmp )
+      
+    CALL wrf_init()
 
-      call NUOPC_ModelGet(gcomp, modelClock=clock, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Set-up grid and load coordinate data
+    !-------------------------------------------------------------------
+    !
+    call OCN_SetGridArrays(gcomp, petCount, localPet, ocnGridIn, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
+    ocnGridOut = ocnGridIn
 
-      call NUOPC_CompSetClock(gcomp, clock, atmTimeStep, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+    call OCN_SetStates(gcomp, ocnGridIn, ocnGridOut, rc)
+  end subroutine ATM_Init2 
 
-      end subroutine
+
+
+  subroutine ATM_SetClock(gcomp, rc)
+  !
+  !-----------------------------------------------------------------------
+  !     Atm Set Clock  
+  !-----------------------------------------------------------------------
+  !
+
+    type(ESMF_GridComp)  :: gcomp
+    integer, intent(out) :: rc
+
+    type(ESMF_Clock)     :: clock
+    type(ESMF_VM) :: vm
+    
+    rc = ESMF_SUCCESS
+
+    call NUOPC_ModelGet(gcomp, modelClock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    call NUOPC_CompSetClock(gcomp, clock, ocnTimeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+
+    ! Run 0 time step to initialize data (maybe not useful)
+    call OCN_Put(gcomp, 0, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+  end subroutine
 !
 !-----------------------------------------------------------------------
 !     Run
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE ATM_RUN(gcomp, rc)
-      type(ESMF_GridComp)  :: gcomp
-      integer, intent(out) :: rc
-      
-      ! local variables
-      type(ESMF_Clock) :: clock
-      type(ESMF_State) :: importState, exportState
-      TYPE(ESMF_Time) :: currentTime, nextTime
-      TYPE(ESMF_Time) :: startTime, stopTime
-      TYPE(ESMF_TimeInterval) :: deltaTime
-      TYPE(ESMF_TimeInterval) :: runLength     ! how long to run in this call
-      CHARACTER(LEN=256) :: timeStr
-      CHARACTER(LEN=256) :: ofile
-      type(ESMF_Grid) , pointer :: esmfgrid
-      type(ESMF_Grid) :: getgrid
-      type(ESMF_Field) :: esmffield
-      integer :: iLoop_atm = 1
-      integer :: n,m
+  subroutine OCN_Run(gcomp, rc)
 
-      TYPE(ESMF_GridComp), TARGET :: t_gcomp
-      TYPE(ESMF_State),    TARGET :: t_importState, t_exportState
-      TYPE(ESMF_Clock),    TARGET :: t_clock
+  type(ESMF_GridComp)  :: gcomp
+  integer, intent(out) :: rc
 
-      TYPE(ESMF_GridComp), POINTER :: p_gcomp
-      TYPE(ESMF_State),    POINTER :: p_importState, p_exportState
-      TYPE(ESMF_Clock),    POINTER :: p_clock
-
-      CHARACTER (ESMF_MAXSTR) :: statename
-      CHARACTER (ESMF_MAXSTR), ALLOCATABLE :: itemNames(:)
-      TYPE(ESMF_StateItem_Flag), ALLOCATABLE :: itemTypes(:)
-      INTEGER :: itemCount, i
-      TYPE(ESMF_StateIntent_Flag) :: stateintent
-      TYPE(ESMF_Time) :: currTime
-      TYPE(ESMF_TimeInterval) :: timeStep
-      real(ESMF_KIND_R4), pointer :: ptrX(:,:), ptrY(:,:)
-      real(ESMF_KIND_R4), pointer :: ptr_esmffield(:,:)
-      INTEGER :: ids, ide, jds, jde, kds, kde
-      INTEGER :: ims, ime, jms, jme, kms, kme
-      INTEGER :: ips, ipe, jps, jpe, kps, kpe
-      INTEGER :: nI, nJ
-      real(ESMF_KIND_R8) :: wTimeStart, wTimeEnd
-
-      call ESMF_VMWtime(wTimeStart)
+  type(ESMF_Clock)     :: clock
+  type(ESMF_State)     :: importState, exportState
   
-      rc = ESMF_SUCCESS
-
-      CALL get_ijk_from_grid( head_grid ,                   &
-                                ids, ide, jds, jde, kds, kde, &
-                                ims, ime, jms, jme, kms, kme, &
-                                ips, ipe, jps, jpe, kps, kpe  )
-      
-      ! query the Component for its clock, importState and exportState
-      call ESMF_GridCompGet(gcomp, clock=clock, &
-        importState=importState, exportState=exportState, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=__FILE__)) return  ! bail out
-
-      t_gcomp = gcomp
-      t_importState = importState
-      t_exportState = exportState
-      t_clock = clock
-
-      p_gcomp => t_gcomp
-      p_importState => t_importState
-      p_exportState => t_exportState
-      p_clock => t_clock
-
-      CALL ESMF_SetCurrent( gcomp=p_gcomp, importState=p_importState, &
-                            exportState=p_exportState, clock=p_clock)
+  integer :: i, j, maxdiv, runid, localPet, petCount
+  integer :: myThid
+  integer :: myIter = 0
+  real*8 :: myTime = 0d0
+  integer :: iLoop_ocn = 1
+  integer :: nTimeStepsIn = 1
+  character(ESMF_MAXSTR) :: cname
   
-      CALL ESMF_ClockGet( clock, currTime=currentTime, &
-                          timeStep=runLength, rc=rc )
-      nextTime = currentTime + runLength
-      head_grid%start_subtime = currentTime
-      head_grid%stop_subtime = nextTime
+  type(ESMF_VM) :: vm
+  type(ESMF_Time) :: startTime
+  type(ESMF_Time) :: stopTime
+  type(ESMF_Time) :: currTime
+  type(ESMF_TimeInterval) :: timeStep
+  type(ESMF_Clock) :: internalClock
+  real(ESMF_KIND_R8) :: wTimeStart, wTimeEnd
+
+  call ESMF_VMWtime(wTimeStart)
   
-      CALL wrf_timetoa ( head_grid%start_subtime, timeStr )
-      CALL wrf_timetoa ( head_grid%stop_subtime, timeStr )
+  rc = ESMF_SUCCESS
+
+  call NUOPC_ModelGet(gcomp, modelClock=clock,                      &
+                      importState=importState,                      &
+                      exportState=exportState, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
+
+  call OCN_Get(gcomp, iLoop_ocn, rc)
+
+  if (currentTimeStep == 0) then
+    call mit_getclock(myTime, myIter)
+    nTimeStepsIn = INT( esm_step_seconds/ocn_step_seconds )
+  end if
+
+  call mit_run(iLoop_ocn, myTime, myIter, nTimeStepsIn, myThid)
+
+  call OCN_Put(gcomp, iLoop_ocn, rc)
+
+  call ESMF_ClockPrint(clock, options="currTime", &
+         preString="------>Advancing OCN from: ", rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+  
+  call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep,   &
+                     rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+  
+  call ESMF_TimePrint(currTime + timeStep,                          &
+         preString="--------------------------------> to: ", rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+  iLoop_ocn = iLoop_ocn + 1
+  currentTimeStep = currentTimeStep + 1
+
+  call ESMF_VMWtime(wTimeEnd)
+  ocn_wall_time = ocn_wall_time + wTimeEnd - wTimeStart
+
+  end subroutine
+!
+!-----------------------------------------------------------------------
+!     Call Ocean model finalize routines
+!-----------------------------------------------------------------------
+!
+  subroutine OCN_Final(gcomp, importState, exportState, clock, rc)
+
+  type(ESMF_GridComp)  :: gcomp
+  integer, intent(out) :: rc
+
+  type(ESMF_Clock)     :: clock
+  type(ESMF_State)     :: importState, exportState
+  
+  rc = ESMF_SUCCESS
+
+  end subroutine
+
+  subroutine ATM_SetGridArrays(gcomp, petCount, localPet, gridIn,rc)
+  !
+  !  Sets the grid informations of WRF 
+  !
+    implicit none
+
+    type(ESMF_GridComp), intent(inout) :: gcomp
+    integer, intent(in) :: localPet 
+    integer, intent(in) :: petCount 
+    type(ESMF_Grid) :: gridIn
+    integer, intent(inout) :: rc
+    type(ESMF_VM) :: vm
+    character(ESMF_MAXSTR) :: cname
+
+    INTEGER sNx, sNy, OLx, OLy, nSx, nSy, nPx, nPy
+    INTEGER Nx, Ny, Nr, i, j, bi, bj
+    INTEGER myXGlobalLo, myYGlobalLo
+    integer :: myThid = 1
+    REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: rA_ESMF, xC_ESMF
+    REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: xG_ESMF, yC_ESMF
+    REAL*8, DIMENSION(:,:,:,:), ALLOCATABLE :: yG_ESMF
+    REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: maskC_ESMF
+    REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: maskS_ESMF
+    REAL*8, DIMENSION(:,:,:,:,:), ALLOCATABLE :: maskW_ESMF
+
+    integer :: k, m, n, p, iG, jG
+    integer :: localDECount, tile
+    character(ESMF_MAXSTR) :: name
+    integer(ESMF_KIND_I4), pointer :: ptrM(:,:)
+    real(ESMF_KIND_R8), pointer :: ptrX(:,:), ptrY(:,:), ptrA(:,:)
+    type(ESMF_Array) :: arrX, arrY, arrM, arrA
+    type(ESMF_StaggerLoc) :: staggerLoc
+    type(ESMF_DistGrid) :: distGrid
+    integer, allocatable :: deBlockList(:,:,:)
+    integer, allocatable :: meshType(:)
+    character(ESMF_MAXSTR), allocatable :: meshTypeName(:)
+    integer, allocatable :: mpi_myXGlobalLo(:), mpi_myYGlobalLo(:)
+    !
+    !-------------------------------------------------------------------
+    ! Local variable declarations 
+    !-------------------------------------------------------------------
+    !
+    rc = ESMF_SUCCESS
+    call get_domain_size(sNx, sNy, OLx, OLy,                          &
+                         nSx, nSy, nPx, nPy, Nx, Ny, Nr,              &
+                         myXGlobalLo, myYGlobalLo)
+    ALLOCATE(rA_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(xC_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(xG_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(yC_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(yG_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+    ALLOCATE(maskC_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+    ALLOCATE(maskS_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+    ALLOCATE(maskW_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+
+    call get_grid_parameters(rA_ESMF, xC_ESMF, xG_ESMF,               &
+                           yC_ESMF, yG_ESMF, maskC_ESMF,            &
+                           maskS_ESMF, maskW_ESMF, myThid)
+    !
+    !-------------------------------------------------------------------
+    ! Get gridded component 
+    !-------------------------------------------------------------------
+    !
+    call ESMF_GridCompGet(gcomp, vm=vm, name=cname, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    if (.not. allocated(mpi_myXGlobalLo)) then
+      allocate(mpi_myXGlobalLo(nPx*nPy))
+      allocate(mpi_myYGlobalLo(nPx*nPy))
+    end if
+!    
+    call ESMF_VMAllGatherV(vm, sendData=(/ myXGlobalLo /),            &
+                           sendCount=1, recvData=mpi_myXGlobalLo,     &
+                           recvCounts=(/ (1, k = 0, petCount-1) /),   &
+                           recvOffsets=(/ (k, k = 0, petCount-1) /),  &
+                           rc=rc)
+!
+    call ESMF_VMAllGatherV(vm, sendData=(/ myYGlobalLo /),            &
+                         sendCount=1, recvData=mpi_myYGlobalLo,     &
+                         recvCounts=(/ (1, k = 0, petCount-1) /),   &
+                         recvOffsets=(/ (k, k = 0, petCount-1) /),  &
+                         rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Get limits of the grid arrays (based on PET and nest level)
+    !-------------------------------------------------------------------
+    !
+    if (.not.allocated(deBlockList)) then
+      allocate(deBlockList(2,2,1:nPx*nPy))
+    end if
+!
+    do tile = 1, (nPx*nPy)
+      deBlockList(1,1,tile) = mpi_myXGlobalLo(tile)
+      deBlockList(1,2,tile) = mpi_myXGlobalLo(tile)+sNx-1
+      deBlockList(2,1,tile) = mpi_myYGlobalLo(tile) 
+      deBlockList(2,2,tile) = mpi_myYGlobalLo(tile)+sNy-1
+    end do
+    !
+    !-------------------------------------------------------------------
+    ! Create ESMF DistGrid based on model domain decomposition
+    !-------------------------------------------------------------------
+    !
+    distGrid = ESMF_DistGridCreate(minIndex=(/ 1, 1 /),               &
+                                   maxIndex=(/ Nx, Ny /),             &
+                                   deBlockList=deBlockList,           &
+                                   rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Set staggering type 
+    !-------------------------------------------------------------------
+    !
+    staggerLoc = ESMF_STAGGERLOC_CENTER ! Icross
+    !
+    !-------------------------------------------------------------------
+    ! Create ESMF Grid
+    !-------------------------------------------------------------------
+    !
+      ! Icross
+      gridIn = ESMF_GridCreate(distgrid=distGrid,                       &
+                               indexflag=ESMF_INDEX_GLOBAL,             &
+                               name="ocn_grid", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+          line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Allocate coordinates 
+    !-------------------------------------------------------------------
+    !
+    call ESMF_GridAddCoord(gridIn, staggerLoc=staggerLoc, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    call ESMF_GridAddItem(gridIn, staggerLoc=staggerLoc,              &
+                          itemflag=ESMF_GRIDITEM_MASK, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    call ESMF_GridAddItem(gridIn, staggerLoc=staggerLoc,              &
+                          itemflag=ESMF_GRIDITEM_AREA, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    call ESMF_GridGet(gridIn, localDECount=localDECount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    do j = 0, localDECount-1
+      call ESMF_GridGetCoord(gridIn, localDE=j, staggerLoc=staggerLoc,&
+                             coordDim=1, farrayPtr=ptrX, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+!
+      call ESMF_GridGetCoord(gridIn, localDE=j, staggerLoc=staggerLoc,&
+                             coordDim=2, farrayPtr=ptrY, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+!
+      call ESMF_GridGetItem(gridIn, localDE=j, staggerLoc=staggerLoc, &
+                            itemflag=ESMF_GRIDITEM_MASK,              &
+                            farrayPtr=ptrM, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+!
+      call ESMF_GridGetItem(gridIn, localDE=j, staggerLoc=staggerLoc, &
+                            itemflag=ESMF_GRIDITEM_AREA, &
+                            farrayPtr=ptrA, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+!
+      bj = 1
+      bi = 1
+      do n = 1, sNy
+        do m = 1, sNx
+          iG = myXGlobalLo-1+(bi-1)*sNx+m
+          jG = myYGlobalLo-1+(bj-1)*sNy+n
+          ptrX(iG,jG) = nint(xC_ESMF(m,n,1,1)*100000)/100000.0
+          ptrY(iG,jG) = nint(yC_ESMF(m,n,1,1)*100000)/100000.0
+          ptrM(iG,jG) = nint(maskC_ESMF(m,n,1,1,1))
+          ptrA(iG,jG) = nint(rA_ESMF(m,n,1,1)*100000)/100000.0
+        end do
+      end do
+!
+!     ! Nullify pointers 
+      if (associated(ptrY)) then
+        nullify(ptrY)
+      end if
+      if (associated(ptrX)) then
+        nullify(ptrX)
+      end if
+      if (associated(ptrM)) then
+        nullify(ptrM)
+      end if
+      if (associated(ptrA)) then
+        nullify(ptrA)
+      end if
+    end do
+    !
+    !-------------------------------------------------------------------
+    ! Write the grid to debug
+    !-------------------------------------------------------------------
+    ! 
+    if (debugLevel >= 1) then
+      call ESMF_GridGetCoord(gridIn,                                  &
+                             staggerLoc=ESMF_STAGGERLOC_CENTER,       &
+                             coordDim=1, array=arrX, rc=rc)
+      call ESMF_GridGetCoord(gridIn,                                  &
+                             staggerLoc=ESMF_STAGGERLOC_CENTER,       &
+                             coordDim=2, array=arrY, rc=rc)
+      call ESMF_ArrayWrite(arrX, filename="ocean_xa_1.nc",            &
+                           status=ESMF_FILESTATUS_NEW, rc=rc)
+      call ESMF_ArrayWrite(arrY, filename="ocean_ya_1.nc",            &
+                           status=ESMF_FILESTATUS_NEW, rc=rc)
+    end if
+    !
+    !-------------------------------------------------------------------
+    ! Assign grid to gridded component 
+    !-------------------------------------------------------------------
+    !
+    call ESMF_GridCompSet(gcomp, grid=gridIn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
+!
+    DEALLOCATE(rA_ESMF)
+    DEALLOCATE(xC_ESMF)
+    DEALLOCATE(xG_ESMF)
+    DEALLOCATE(yC_ESMF)
+    DEALLOCATE(yG_ESMF)
+    DEALLOCATE(maskC_ESMF)
+    DEALLOCATE(maskS_ESMF)
+    DEALLOCATE(maskW_ESMF)
+!
+  end subroutine OCN_SetGridArrays
+!
+  subroutine OCN_SetStates(gcomp, gridIn, gridOut, rc)
+    implicit none
+
+    type(ESMF_GridComp), intent(in) :: gcomp
+    type(ESMF_Grid) :: gridIn
+    type(ESMF_Grid) :: gridOut
+    integer, intent(out) :: rc
+!
+    integer :: i, j, k, itemCount, localDECount, localPet, petCount
+    character(ESMF_MAXSTR), allocatable :: itemNameList(:)
+    real*8, dimension(:,:), pointer :: ptr2d_tmp
+!
+    INTEGER sNx, sNy, OLx, OLy, nSx, nSy, nPx, nPy, Nx, Ny, Nr
+    INTEGER myXGlobalLo, myYGlobalLo
+!
+    type(ESMF_VM) :: vm
+    type(ESMF_Field) :: field_tmp
+    type(ESMF_ArraySpec) :: arraySpec
+    type(ESMF_StaggerLoc) :: staggerLoc 
+    type(ESMF_State) :: importState, exportState
+
+    character(ESMF_MAXSTR) :: entryNameNUOPC, entryNameWRF
+    integer :: iEntry
+    logical :: exportEntry
+  
+    rc = ESMF_SUCCESS
+
+    call ESMF_GridCompGet(gcomp, importState=importState,             &
+                          exportState=exportState, vm=vm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    call ESMF_ArraySpecSet(arraySpec, typekind=ESMF_TYPEKIND_R8,      &
+                           rank=2, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    call ESMF_GridGet(gridIn, localDECount=localDECount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    staggerLoc = ESMF_STAGGERLOC_CENTER
+
+    ! register the MITgcm entries in ESMF
+    do iEntry = 1, nList
+      entryNameNUOPC = trim(nuopc_entryNameList(iEntry));
+      entryNameWRF = trim(wrf_nameList(iEntry));
+      exportEntry = OCNtoATM(iEntry);
+
+      if (exportEntry == .True.) then
+        field_tmp = ESMF_FieldCreate(gridOut, arraySpec,&
+                   staggerloc=staggerLoc,                &
+                   indexflag=ESMF_INDEX_GLOBAL,          &
+                   name=entryNameWRF, rc=rc)
+      else
+        field_tmp = ESMF_FieldCreate(gridOut, arraySpec,&
+                   staggerloc=staggerLoc,                &
+                   indexflag=ESMF_INDEX_GLOBAL,          &
+                   name=entryNameWRF, rc=rc)
+      end if
+
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+
+      !Put initial data into state 
+      do j = 0, localDECount-1
+      ! Get pointer from field 
+        call ESMF_FieldGet(field_tmp, localDe=j, farrayPtr=ptr2d_tmp, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+            line=__LINE__, file=FILENAME)) return
+       
+        ! Initialize pointer 
+        ptr2d_tmp = 0.d0
+        ! Nullify the pointer
+        if (associated(ptr2d_tmp)) then
+          nullify(ptr2d_tmp)
+        end if
+      end do
+
+      if (exportEntry == .True.) then
+        call NUOPC_Realize(exportState, field=field_tmp, rc=rc) 
+      else
+        call NUOPC_Realize(importState, field=field_tmp, rc=rc) 
+      end if
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+    end do
+!
+  end subroutine OCN_SetStates 
 
 
-      call wrf_run();
+  subroutine OCN_Get(gcomp, iLoop, rc)
+  !
+  !-----------------------------------------------------------------------
+  !     Ocean model get data from external
+  !-----------------------------------------------------------------------
+  !
+    implicit none
+
+    type(ESMF_GridComp) :: gcomp
+    integer :: iLoop
+    integer, intent(out) :: rc
+
+    integer :: i, j, ii, jj, bi, bj, iG, jG, imax, jmax
+    integer :: imin, jmin
+    integer :: localPet, petCount, itemCount, localDECount
+    character(ESMF_MAXSTR) :: cname, ofile
+    real(ESMF_KIND_R8) :: sfac, addo
+    real(ESMF_KIND_R8), pointer :: ptr_lwup(:,:), ptr_lwdn(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_swup(:,:), ptr_swdn(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_hl(:,:), ptr_hs(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_u10(:,:), ptr_v10(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_t2(:,:), ptr_q2(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_evap(:,:), ptr_raincv(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_rainshv(:,:), ptr_rainncv(:,:)
+!
+    type(ESMF_VM) :: vm
+    type(ESMF_Clock) :: clock
+    type(ESMF_Grid) :: gridIn
+    type(ESMF_Field) :: field
+    type(ESMF_Field) :: field_lwup, field_lwdn, field_swup, field_swdn
+    type(ESMF_Field) :: field_hl, field_hs
+    type(ESMF_Field) :: field_u10, field_v10
+    type(ESMF_Field) :: field_t2, field_q2
+    type(ESMF_Field) :: field_evap, field_raincv
+    type(ESMF_Field) :: field_rainshv, field_rainncv
+    type(ESMF_State) :: importState
+    INTEGER sNx, sNy, OLx, OLy, nSx, nSy, nPx, nPy, Nx, Ny, Nr
+    INTEGER myXGlobalLo, myYGlobalLo
+    integer :: myThid = 1
+!
+    rc = ESMF_SUCCESS
+
+    !
+    !-------------------------------------------------------------------
+    ! Get gridded component 
+    !-------------------------------------------------------------------
+    !
+    call get_domain_size(sNx, sNy, OLx, OLy,                          &
+          nSx, nSy, nPx, nPy, Nx, Ny, Nr,                             &
+          myXGlobalLo, myYGlobalLo)
+
+    if (ocn_get_first_call) then
+      ALLOCATE(swdown_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(lwdown_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(hl_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(hs_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(uwind_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(vwind_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(atemp_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(aqh_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(evap_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ALLOCATE(precip_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,nSx,nSy))
+      ocn_get_first_call = .false.
+    endif
+
+    call ESMF_GridCompGet(gcomp, name=cname, clock=clock, grid=gridIn,&
+                          importState=importState, vm=vm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Get number of local DEs
+    !-------------------------------------------------------------------
+    ! 
+    call ESMF_GridGet(gridIn, localDECount=localDECount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    call ESMF_StateGet(importState, "LWUPB", field_lwup, rc=rc)
+    call ESMF_StateGet(importState, "LWDNB", field_lwdn, rc=rc)
+    call ESMF_StateGet(importState, "SWUPB", field_swup, rc=rc)
+    call ESMF_StateGet(importState, "SWDNB", field_swdn, rc=rc)
+    call ESMF_StateGet(importState, "LH", field_hl, rc=rc)
+    call ESMF_StateGet(importState, "HFX", field_hs, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    call ESMF_StateGet(importState, "U10", field_u10, rc=rc)
+    call ESMF_StateGet(importState, "V10", field_v10, rc=rc)
+    call ESMF_StateGet(importState, "T2", field_t2, rc=rc)
+    call ESMF_StateGet(importState, "Q2", field_q2, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+
+    call ESMF_StateGet(importState, "QFX", field_evap, rc=rc)
+    call ESMF_StateGet(importState, "RAINCV", field_raincv, rc=rc)
+    call ESMF_StateGet(importState, "RAINSHV", field_rainshv, rc=rc)
+    call ESMF_StateGet(importState, "RAINNCV", field_rainncv, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Loop over decomposition elements (DEs) 
+    !-------------------------------------------------------------------
+    !
+    do j = 0, localDECount-1
+!     ! Get pointer /from field
+      call ESMF_FieldGet(field_lwup, localDE=j, farrayPtr=ptr_lwup, rc=rc)
+      call ESMF_FieldGet(field_lwdn, localDE=j, farrayPtr=ptr_lwdn, rc=rc)
+      call ESMF_FieldGet(field_swup, localDE=j, farrayPtr=ptr_swup, rc=rc)
+      call ESMF_FieldGet(field_swdn, localDE=j, farrayPtr=ptr_swdn, rc=rc)
+      call ESMF_FieldGet(field_hl, localDE=j, farrayPtr=ptr_hl, rc=rc)
+      call ESMF_FieldGet(field_hs, localDE=j, farrayPtr=ptr_hs, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+
+      call ESMF_FieldGet(field_u10, localDE=j, farrayPtr=ptr_u10, rc=rc)
+      call ESMF_FieldGet(field_v10, localDE=j, farrayPtr=ptr_v10, rc=rc)
+      call ESMF_FieldGet(field_t2, localDE=j, farrayPtr=ptr_t2, rc=rc)
+      call ESMF_FieldGet(field_q2, localDE=j, farrayPtr=ptr_q2, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+
+      call ESMF_FieldGet(field_evap, localDE=j, farrayPtr=ptr_evap, rc=rc)
+      call ESMF_FieldGet(field_raincv, localDE=j, farrayPtr=ptr_raincv, rc=rc)
+      call ESMF_FieldGet(field_rainshv, localDE=j, farrayPtr=ptr_rainshv, rc=rc)
+      call ESMF_FieldGet(field_rainncv, localDE=j, farrayPtr=ptr_rainncv, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+
+!     ! Put data to OCN component variable
+      sfac = 1.0d0
+      addo = 0.0d0
+!
+      bi = 1
+      bj = 1
+      do jj = 1-OLy, sNy+OLy
+        do ii = 1-OLx, sNx+OLx
+          imin = myXGlobalLo-1+(bi-1)*sNx
+          imax = myXGlobalLo-1+(bi-1)*sNx+sNx + 1
+          jmin = myYGlobalLo-1+(bj-1)*sNy
+          jmax = myYGlobalLo-1+(bj-1)*sNy+sNy + 1
+          iG = myXGlobalLo-1+(bi-1)*sNx+ii
+          jG = myYGlobalLo-1+(bj-1)*sNy+jj
+          lwdown_ESMF(ii,jj,1,1)       =   0.0d0
+          swdown_ESMF(ii,jj,1,1)       =   0.0d0
+          hl_ESMF(ii,jj,1,1)           =   0.0d0
+          hs_ESMF(ii,jj,1,1)           =   0.0d0
+          uwind_ESMF(ii,jj,1,1)        =   0.0d0
+          vwind_ESMF(ii,jj,1,1)        =   0.0d0
+          atemp_ESMF(ii,jj,1,1)        =   0.0d0
+          aqh_ESMF(ii,jj,1,1)          =   0.0d0
+          evap_ESMF(ii,jj,1,1)         =   0.0d0
+          precip_ESMF(ii,jj,1,1)       =   0.0d0
+
+          if ((iG > imin .and. iG < imax) .and. (jG > jmin .and. jG < jmax)) then
+            lwdown_ESMF(ii,jj,1,1) = (ptr_lwup(iG,jG)-ptr_lwdn(iG,jG))*sfac+addo
+            swdown_ESMF(ii,jj,1,1) = (ptr_swup(iG,jG)-ptr_swdn(iG,jG))*sfac+addo
+            hl_ESMF(ii,jj,1,1)     = -ptr_hl(iG,jG)*sfac+addo
+            hs_ESMF(ii,jj,1,1)     = -ptr_hs(iG,jG)*sfac+addo
+            uwind_ESMF(ii,jj,1,1)  = ptr_u10(iG,jG)*sfac+addo
+            vwind_ESMF(ii,jj,1,1)  = ptr_v10(iG,jG)*sfac+addo
+            atemp_ESMF(ii,jj,1,1)  = (ptr_t2(iG,jG)*sfac)+addo
+            aqh_ESMF(ii,jj,1,1)    = (ptr_q2(iG,jG)*sfac)+addo
+            evap_ESMF(ii,jj,1,1)   = (ptr_evap(iG,jG)/1000d0*sfac)+addo
+            !! need to divide the 'time-step' precipitation
+            !! by WRF time step
+            precip_ESMF(ii,jj,1,1) = ((ptr_raincv(iG,jG)           &
+                                      +ptr_rainshv(iG,jG)          &
+                                      +ptr_rainncv(iG,jG))*sfac    &
+                                      +addo) /(atm_step_seconds+0.d0)     &
+                                     /1000d0
+          endif
+        end do
+      end do
+!
+!     ! Nullify the pointer
+      if (associated(ptr_lwup)) then
+        nullify(ptr_lwup)
+      end if
+      if (associated(ptr_lwdn)) then
+        nullify(ptr_lwdn)
+      end if
+      if (associated(ptr_hl)) then
+        nullify(ptr_hl)
+      end if
+      if (associated(ptr_hs)) then
+        nullify(ptr_hs)
+      end if
+      if (associated(ptr_swup)) then
+        nullify(ptr_swup)
+      end if
+      if (associated(ptr_swdn)) then
+        nullify(ptr_swup)
+      end if
+      if (associated(ptr_u10)) then
+        nullify(ptr_u10)
+      end if
+      if (associated(ptr_v10)) then
+        nullify(ptr_v10)
+      end if
+      if (associated(ptr_t2)) then
+        nullify(ptr_t2)
+      end if
+      if (associated(ptr_q2)) then
+        nullify(ptr_q2)
+      end if
+      if (associated(ptr_evap)) then
+        nullify(ptr_evap)
+      end if
+      if (associated(ptr_raincv)) then
+        nullify(ptr_raincv)
+      end if
+      if (associated(ptr_rainshv)) then
+        nullify(ptr_rainshv)
+      end if
+      if (associated(ptr_rainncv)) then
+        nullify(ptr_rainncv)
+      end if
+!
+    end do       
+!
+    call get_field_parameters(lwdown_ESMF, swdown_ESMF, &
+                              hl_ESMF, hs_ESMF, &
+                              uwind_ESMF, vwind_ESMF, &
+                              atemp_ESMF, aqh_ESMF, &
+                              evap_ESMF, precip_ESMF, myThid)
+
+    if (debugLevel >= 1) then
+      write (ofile, "(A5,I6.6,A3)") "hlATM", iLoop, ".nc"
+      call ESMF_FieldWrite(field_hl, trim(ofile), rc=rc)
+    end if
+
+  end subroutine OCN_Get
 
 
-      iLoop_atm = iLoop_atm + 1
 
-      call ESMF_VMWtime(wTimeEnd)
-      atm_wall_time = atm_wall_time + wTimeEnd - wTimeStart
+  subroutine ATM_Put(gcomp, iLoop, rc)
+  !
+  !-----------------------------------------------------------------------
+  !     Ocean model put data to external
+  !-----------------------------------------------------------------------
+  !
+    implicit none
 
-      end subroutine
+    type(ESMF_GridComp) :: gcomp
+    type(ESMF_Grid) :: gridIn
+    integer, intent(out) :: rc
+    integer :: iLoop
 
-      SUBROUTINE wrf_findCouplingInterval(startTime, stopTime, &
-                                          couplingInterval )
-        TYPE(ESMF_Time),         INTENT(IN   ) :: startTime
-        TYPE(ESMF_Time),         INTENT(IN   ) :: stopTime
-        TYPE(ESMF_TimeInterval), INTENT(  OUT) :: couplingInterval
-        ! locals
-        LOGICAL :: foundcoupling
-        INTEGER :: rc
-        INTEGER :: io_form
-        ! external function prototype
-        INTEGER, EXTERNAL :: use_package
-   
-        ! deduce coupling time-step
-        foundcoupling = .FALSE.
-   
-        include "med_find_esmf_coupling.inc"
-   
-        ! look for erroneous use of io_form...  
-        CALL nl_get_io_form_restart( 1, io_form )
-        IF ( use_package( io_form ) == IO_ESMF ) THEN
-          ! CALL wrf_error_fatal ( 'wrf_findCouplingInterval:  ERROR:  ESMF cannot be used for WRF restart I/O' )
-        ENDIF
-        CALL nl_get_io_form_input( 1, io_form )
-        IF ( use_package( io_form ) == IO_ESMF ) THEN
-          ! CALL wrf_error_fatal ( 'wrf_findCouplingInterval:  ERROR:  ESMF cannot be used for WRF input' )
-        ENDIF
-        CALL nl_get_io_form_history( 1, io_form )
-        IF ( use_package( io_form ) == IO_ESMF ) THEN
-          ! CALL wrf_error_fatal ( 'wrf_findCouplingInterval:  ERROR:  ESMF cannot be used for WRF history output' )
-        ENDIF
-        CALL nl_get_io_form_boundary( 1, io_form )
-        IF ( use_package( io_form ) == IO_ESMF ) THEN
-          ! CALL wrf_error_fatal ( 'wrf_findCouplingInterval:  ERROR:  ESMF cannot be used for WRF boundary I/O' )
-        ENDIF
-   
-        ! If nobody uses IO_ESMF, then default is to run WRF all the way to 
-        ! the end.  
-        IF ( .NOT. foundcoupling ) THEN
-          couplingInterval = stopTime - startTime
-          ! call wrf_debug ( 1, 'WARNING:  ESMF coupling not used in this WRF run' )
-        ENDIF
-   
-      END SUBROUTINE wrf_findCouplingInterval
-   
-      SUBROUTINE wrf_getDecompInfo( ids, ide, jds, jde, kds, kde, &
-                                    ims, ime, jms, jme, kms, kme, &
-                                    ips, ipe, jps, jpe, kps, kpe, &
-                                    domdesc, bdy_mask )
-        INTEGER, INTENT(OUT) :: ids, ide, jds, jde, kds, kde
-        INTEGER, INTENT(OUT) :: ims, ime, jms, jme, kms, kme
-        INTEGER, INTENT(OUT) :: ips, ipe, jps, jpe, kps, kpe
-        INTEGER, INTENT(OUT) :: domdesc
-        LOGICAL, INTENT(OUT) :: bdy_mask(4)
+    integer :: i, j, ii, jj, bi, bj, iG, jG, imax, jmax
+    integer :: petCount, localPet, itemCount, localDECount
+    character(ESMF_MAXSTR) :: cname, ofile
+    real(ESMF_KIND_R8), pointer :: ptr_sst(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_uoce(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_voce(:,:)
+    real(ESMF_KIND_R8), pointer :: ptr_sst_input(:,:)
+    integer(ESMF_KIND_I4), pointer :: ptr_mask(:,:)
+!
+    type(ESMF_VM) :: vm
+    type(ESMF_Clock) :: clock
+    type(ESMF_Field) :: field_sst
+    type(ESMF_Field) :: field_uoce
+    type(ESMF_Field) :: field_voce
+    type(ESMF_Field) :: field_sst_input
+    type(ESMF_State) :: importState, exportState
+!
+    INTEGER sNx, sNy, OLx, OLy, nSx, nSy, nPx, nPy, Nx, Ny, Nr
+    INTEGER myXGlobalLo, myYGlobalLo
+    integer :: myThid = 1
+!
+    rc = ESMF_SUCCESS
+    !
+    !-------------------------------------------------------------------
+    ! Get ESMF domain size info
+    !-------------------------------------------------------------------
+    !
+    call get_domain_size(sNx, sNy, OLx, OLy,                          &
+                       nSx, nSy, nPx, nPy, Nx, Ny, Nr,              &
+                       myXGlobalLo, myYGlobalLo)
 
-        ! extract decomposition information from head_grid
-        CALL get_ijk_from_grid( head_grid ,                   &
-                                ids, ide, jds, jde, kds, kde, &
-                                ims, ime, jms, jme, kms, kme, &
-                                ips, ipe, jps, jpe, kps, kpe  )
-        !! #if 0
-        !! ! JM
-        !! ! with version 3 of ESMF's staggering concepts, WRF's non-staggered grid is equivalent to 
-        !! ! esmf's 'exclusive' region -- that is the set of points that are owned by the 'DE' (eyeroll)
-        !! ! WRF, on the other hand, is returning the 'staggered' dimensions here.  So convert to the
-        !! ! unstaggered dims before returning.
-        !! ! Don't bother with vertical dimension for the time being, since we're only doing 2D coupling.
-        !! !
-        !!      ide = ide-1 ; ipe = MIN(ide,ipe)
-        !!      jde = jde-1 ; jpe = MIN(jde,jpe)
-        !! #else
-        !! ! JM
-        !! ! with version 4 I have no damned clue at this writing... just random shots for now
-        !! ! see if this works.
-        !!      ipe = MIN(ide-1,ipe)
-        !!      jpe = MIN(jde-1,jpe)
-        !! #endif
-        ide = ide-1 ; ipe = MIN(ide,ipe)
-        jde = jde-1 ; jpe = MIN(jde,jpe)
-   
-        domdesc = head_grid%domdesc
-        bdy_mask = head_grid%bdy_mask
+    if (ocn_put_first_call) then
+      ALLOCATE(theta_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+      ALLOCATE(uoce_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+      ALLOCATE(voce_ESMF(1-OLx:sNx+OLx,1-OLy:sNy+OLy,Nr,nSx,nSy))
+      ocn_put_first_call = .false.
+    endif
 
-        END SUBROUTINE wrf_getDecompInfo
-   
-   
-        SUBROUTINE wrf_state_populate( ierr )
+    call get_theta(theta_ESMF, myThid)
+    call get_uvoce(uoce_ESMF, voce_ESMF, myThid)
+    !
+    !-------------------------------------------------------------------
+    ! Get gridded component 
+    !-------------------------------------------------------------------
+    !
+    call ESMF_GridCompGet(gcomp, name=cname, clock=clock, grid=gridIn,&
+                          exportState=exportState,                    &
+                          importState=importState, vm=vm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+!
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+! 
+    !! TODO: check if gridin being used correctly
+    call ESMF_GridGet(gridIn, localDECount=localDECount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Get export field 
+    !-------------------------------------------------------------------
+    !
+    call ESMF_StateGet(exportState, "SST", field_sst, rc=rc)
+    call ESMF_StateGet(exportState, "UOCE", field_uoce, rc=rc)
+    call ESMF_StateGet(exportState, "VOCE", field_voce, rc=rc)
+    call ESMF_StateGet(importState, "SST_INPUT", field_sst_input, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=FILENAME)) return
+    !
+    !-------------------------------------------------------------------
+    ! Loop over decomposition elements (DEs) 
+    !-------------------------------------------------------------------
+    !
+    do j = 0, localDECount-1
 
-        ! Driver layer
-        USE module_domain, ONLY : domain
-        USE module_io_domain
-        ! Model layer
-        USE module_configure, ONLY : grid_config_rec_type
-        USE module_configure, ONLY : model_to_grid_config_rec
-        USE module_bc_time_utilities
-   
-        IMPLICIT NONE
-   
-        ! Arguments
-        INTEGER, INTENT(OUT)       :: ierr
-        ! Local
-        TYPE(domain), POINTER      :: grid
-        TYPE(grid_config_rec_type) :: config_flags
-        INTEGER                    :: stream, idum1, idum2, io_form
-        CHARACTER*80               :: fname, n2
-        ! external function prototype
-        INTEGER, EXTERNAL          :: use_package
-   
-        ! for now support coupling to head_grid only
-        grid => head_grid
-   
-        CALL model_to_grid_config_rec ( grid%id ,&
-          model_config_rec , config_flags )
-        CALL set_scalar_indices_from_config ( grid%id , idum1 , idum2 )
-   
-        stream = 0 
-        ierr = 0
-        
-   
-        include "med_open_esmf_calls.inc"
-   
-      END SUBROUTINE wrf_state_populate
+!     ! Get pointer 
+      call ESMF_GridGetItem(gridIn, ESMF_GRIDITEM_MASK,               &
+                            staggerloc=ESMF_STAGGERLOC_CENTER,        &
+                            localDe=j, farrayPtr=ptr_mask, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
 
+      call ESMF_FieldGet(field_sst, localDE=j, farrayPtr=ptr_sst, rc=rc)
+      call ESMF_FieldGet(field_uoce, localDE=j, farrayPtr=ptr_uoce, rc=rc)
+      call ESMF_FieldGet(field_voce, localDE=j, farrayPtr=ptr_voce, rc=rc)
+      call ESMF_FieldGet(field_sst_input, localDE=j,                    &
+                         farrayPtr=ptr_sst_input, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
+          line=__LINE__, file=FILENAME)) return
+!
+!     ! Put data to export field 
+      bi = 1
+      bj = 1
+!
+      do jj = 1, sNy
+        do ii = 1, sNx
+          iG = myXGlobalLo-1+(bi-1)*sNx+ii
+          jG = myYGlobalLo-1+(bj-1)*sNy+jj
+          !! Make sure that theta + 273.15 is the true SST number
+          if (ptr_mask(iG,jG) > 0.01) then
+            !! if ocean, use theta_ESMF in MITgcm
+            ptr_sst(iG,jG) = theta_ESMF(ii,jj,1,1,1) + 273.15
+            ptr_uoce(iG,jG) = uoce_ESMF(ii,jj,1,1,1)
+            ptr_voce(iG,jG) = voce_ESMF(ii,jj,1,1,1)
+          else
+            !! if land, use initial SST and zero current
+            ptr_sst(iG,jG) = ptr_sst_input(iG,jG)
+            ptr_uoce(iG,jG) = 0.d0
+            ptr_voce(iG,jG) = 0.d0
+          end if
+        end do
+      end do
+!
+!     ! Write field to debug
+      if (debugLevel >= 1) then
+        write (ofile, "(A9,I6.6,A3)") "sstOCNput", iLoop, ".nc"
+        call ESMF_FieldWrite(field_sst, trim(ofile), rc=rc)
+      end if
 
-      end module mod_esmf_atm
+!     ! Nullify the pointer
+      if (associated(ptr_sst)) then
+        nullify(ptr_sst)
+      end if
+      if (associated(ptr_uoce)) then
+        nullify(ptr_uoce)
+      end if
+      if (associated(ptr_voce)) then
+        nullify(ptr_voce)
+      end if
+      if (associated(ptr_mask)) then
+        nullify(ptr_mask)
+      end if
+!
+    end do
+
+  end subroutine OCN_Put
+!
+end module mod_esmf_atm
+
