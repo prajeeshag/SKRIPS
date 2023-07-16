@@ -74,8 +74,8 @@ function __build_wrf_lib {
     jobs=$1
     cd $WRF_DIR
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
-    cp configure.wrf configure.wrf_org
-    cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
+    #cp configure.wrf configure.wrf_org
+    #cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
     ./compile -j $jobs em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
     linenumber=$(grep -n "bundled:" configure.wrf | cut -d : -f 1)
     head -n $((linenumber-1)) configure.wrf > configure.wrf_cpl
