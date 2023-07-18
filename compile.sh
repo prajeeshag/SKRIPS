@@ -72,7 +72,14 @@ function build_esmf_lib {
 
 function __build_wrf_lib {
     jobs=$1
+    clean=$2
     cd $WRF_DIR
+
+    if [[ $clean -eq 1 ]]; then 
+      ./clean -a 
+      return 
+    fi
+    
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
     #cp configure.wrf configure.wrf_org
     #cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
@@ -81,7 +88,7 @@ function __build_wrf_lib {
     # sed -i '1s|^|include $(ESMF_LIB)/esmf.mk |' configure.wrf
 
     # Replace esmf_time_f90 of WRF 
-    # sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/esmf_time_f90|g' configure.wrf
+    sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/cesmf_time_f90|g' configure.wrf
     
     # Add ESMF INCLUDE
     # sed -i '/^ESMF_MOD_INC\b/ s/.*/& $(ESMF_F90COMPILEPATHS)/' configure.wrf
@@ -94,10 +101,11 @@ function __build_wrf_lib {
 function build_wrf_lib {
     __addarg "-h" "--help" "help" "optional" "" "Build the WRF as library"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "" "--clean" "flag" "optional" "" "clean the build"
     __parseargs "$@"
 
     __source_env
-    __build_wrf_lib $jobs
+    __build_wrf_lib $jobs $clean
 }
 
 function __get_mitgcm_domain_parm {
