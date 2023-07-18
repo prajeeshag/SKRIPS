@@ -3,7 +3,7 @@ set -e
 
 source ./tools/koi/koi
 koiname=$0
-koidescription="Compile SKRIPS model"
+koidescription="Compile SKRIPS model"             
 koicolors=0
 
 function __get_absolute_path {
@@ -76,6 +76,7 @@ function __build_wrf_lib {
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
     #cp configure.wrf configure.wrf_org
     #cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
+    sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/esmf_time_f90|g' configure.wrf
     ./compile -j $jobs em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
     linenumber=$(grep -n "bundled:" configure.wrf | cut -d : -f 1)
     head -n $((linenumber-1)) configure.wrf > configure.wrf_cpl
