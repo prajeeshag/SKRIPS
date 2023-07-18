@@ -18,6 +18,7 @@ RANLIB	= echo
 FGREP = fgrep -iq
 
 OBJS = module_symbols_util.o \
+			 module_esmf_extensions.o \
 				module_utility.o 
 
 include $(ESMF_LIB)/esmf.mk
@@ -73,5 +74,5 @@ superclean: testclean
 
 #$$$ update dependencies!  
 
-module_utility.o :  module_symbols_util.o
+module_utility.o :  module_symbols_util.o module_esmf_extensions.o
 
