@@ -2,7 +2,6 @@
       MODULE module_utility
 
         USE module_symbols_util
-        USE module_esmf_extensions
 
       END MODULE module_utility
 

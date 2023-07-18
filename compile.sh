@@ -76,7 +76,16 @@ function __build_wrf_lib {
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
     #cp configure.wrf configure.wrf_org
     #cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
-    sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/esmf_time_f90|g' configure.wrf
+
+    # Prepend include ESM_LIB/esmf.mk to configure
+    # sed -i '1s|^|include $(ESMF_LIB)/esmf.mk |' configure.wrf
+
+    # Replace esmf_time_f90 of WRF 
+    # sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/esmf_time_f90|g' configure.wrf
+    
+    # Add ESMF INCLUDE
+    # sed -i '/^ESMF_MOD_INC\b/ s/.*/& $(ESMF_F90COMPILEPATHS)/' configure.wrf
+    
     ./compile -j $jobs em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
     linenumber=$(grep -n "bundled:" configure.wrf | cut -d : -f 1)
     head -n $((linenumber-1)) configure.wrf > configure.wrf_cpl
