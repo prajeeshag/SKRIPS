@@ -88,7 +88,8 @@ function __build_wrf_lib {
     # sed -i '1s|^|include $(ESMF_LIB)/esmf.mk |' configure.wrf
 
     # Replace esmf_time_f90 of WRF 
-    sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/cesmf_time_f90|g' configure.wrf
+    rm -rf external/WRF/external/esmf_time_f90 && ln -sf external/cesmf_time_f90 external/WRF/external/esmf_time_f90
+    # sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/cesmf_time_f90|g' configure.wrf
     
     # Add ESMF INCLUDE
     # sed -i '/^ESMF_MOD_INC\b/ s/.*/& $(ESMF_F90COMPILEPATHS)/' configure.wrf
@@ -107,6 +108,7 @@ function build_wrf_lib {
     __source_env
     __build_wrf_lib $jobs $clean
 }
+
 
 function __get_mitgcm_domain_parm {
     code=$1

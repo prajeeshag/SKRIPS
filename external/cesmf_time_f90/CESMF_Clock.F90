@@ -887,7 +887,7 @@
       subroutine CESMF_ClockAdvance(clock, RingingAlarmList, &
                                    NumRingingAlarms, rc)
 
-use esmf_timemod
+use cesmf_timemod
 
 ! !ARGUMENTS:
       type(CESMF_Clock), intent(inout) :: clock

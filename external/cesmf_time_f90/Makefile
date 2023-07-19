@@ -1,8 +1,8 @@
-# To build this by itself, use the make target esmf_time_f90_only 
+# To build this by itself, use the make target cesmf_time_f90_only 
 # from the top-level WRF Makefile.  
 # > cd ../..
 # configure
-# make esmf_time_f90_only
+# make cesmf_time_f90_only
 
 .SUFFIXES: .F90 .o .f
 

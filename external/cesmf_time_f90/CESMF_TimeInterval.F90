@@ -79,7 +79,7 @@
       public CESMF_TimeIntervalDIVQuot 
 
       ! This convenience routine is only used by other modules in 
-      ! esmf_time_f90.  
+      ! cesmf_time_f90.  
       public CESMF_TimeIntervalIsPositive
 
 
@@ -1018,7 +1018,7 @@
 
 !$$$here...  move all this out of Meat.F90 ?  
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeIntEQ(timeinterval1, timeinterval2, CESMF_TimeIntervalEQ)
+      call c_esmcf_basetimeIntEQ(timeinterval1, timeinterval2, CESMF_TimeIntervalEQ)
 
       end function CESMF_TimeIntervalEQ
 
@@ -1056,7 +1056,7 @@
       CALL timeintchecknormalized( timeinterval2, 'CESMF_TimeIntervalNE arg2' )
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeIntNE(timeinterval1, timeinterval2, CESMF_TimeIntervalNE)
+      call c_esmcf_basetimeIntNE(timeinterval1, timeinterval2, CESMF_TimeIntervalNE)
 
       end function CESMF_TimeIntervalNE
 
@@ -1094,7 +1094,7 @@
       CALL timeintchecknormalized( timeinterval2, 'CESMF_TimeIntervalLT arg2' )
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeIntLT(timeinterval1, timeinterval2, CESMF_TimeIntervalLT)
+      call c_esmcf_basetimeIntLT(timeinterval1, timeinterval2, CESMF_TimeIntervalLT)
 
       end function CESMF_TimeIntervalLT
 
@@ -1132,7 +1132,7 @@
       CALL timeintchecknormalized( timeinterval2, 'CESMF_TimeIntervalGT arg2' )
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeIntGT(timeinterval1, timeinterval2, CESMF_TimeIntervalGT)
+      call c_esmcf_basetimeIntGT(timeinterval1, timeinterval2, CESMF_TimeIntervalGT)
 
       end function CESMF_TimeIntervalGT
 
@@ -1171,7 +1171,7 @@
       CALL timeintchecknormalized( timeinterval2, 'CESMF_TimeIntervalLE arg2' )
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeIntLE(timeinterval1, timeinterval2, CESMF_TimeIntervalLE)
+      call c_esmcf_basetimeIntLE(timeinterval1, timeinterval2, CESMF_TimeIntervalLE)
 
       end function CESMF_TimeIntervalLE
 
@@ -1209,7 +1209,7 @@
       CALL timeintchecknormalized( timeinterval2, 'CESMF_TimeIntervalGE arg2' )
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeIntGE(timeinterval1, timeinterval2, CESMF_TimeIntervalGE)
+      call c_esmcf_basetimeIntGE(timeinterval1, timeinterval2, CESMF_TimeIntervalGE)
 
       end function CESMF_TimeIntervalGE
 

@@ -824,7 +824,7 @@
       CESMF_TimeInc = time
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeSum(time, timeinterval, CESMF_TimeInc)
+      call c_esmcf_basetimeSum(time, timeinterval, CESMF_TimeInc)
 
       end function CESMF_TimeInc
 !
@@ -878,7 +878,7 @@
       CESMF_TimeDec = time
 
       ! call ESMC_BaseTime base class function
-       call c_ESMC_BaseTimeDec(time, timeinterval, CESMF_TimeDec)
+       call c_esmcf_basetimeDec(time, timeinterval, CESMF_TimeDec)
 
       end function CESMF_TimeDec
 
@@ -929,7 +929,7 @@
 
       ! call ESMC_BaseTime base class function
       CALL CESMF_TimeIntervalSet( CESMF_TimeDiff, rc=rc )
-      call c_ESMC_BaseTimeDiff(time1, time2, CESMF_TimeDiff)
+      call c_esmcf_basetimeDiff(time1, time2, CESMF_TimeDiff)
 
       end function CESMF_TimeDiff
 
@@ -965,7 +965,7 @@
 !EOP
 
       ! invoke C to C++ entry point for CESMF_BaseTime base class function
-      call c_ESMC_BaseTimeEQ(time1, time2, CESMF_TimeEQ)
+      call c_esmcf_basetimeEQ(time1, time2, CESMF_TimeEQ)
 
       end function CESMF_TimeEQ
 
@@ -1001,7 +1001,7 @@
 !EOP
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeNE(time1, time2, CESMF_TimeNE)
+      call c_esmcf_basetimeNE(time1, time2, CESMF_TimeNE)
 
       end function CESMF_TimeNE
 
@@ -1037,7 +1037,7 @@
 !EOP
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeLT(time1, time2, CESMF_TimeLT)
+      call c_esmcf_basetimeLT(time1, time2, CESMF_TimeLT)
 
       end function CESMF_TimeLT
 
@@ -1073,7 +1073,7 @@
 !EOP
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeGT(time1, time2, CESMF_TimeGT)
+      call c_esmcf_basetimeGT(time1, time2, CESMF_TimeGT)
 
       end function CESMF_TimeGT
 
@@ -1109,7 +1109,7 @@
 !EOP
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeLE(time1, time2, CESMF_TimeLE)
+      call c_esmcf_basetimeLE(time1, time2, CESMF_TimeLE)
 
       end function CESMF_TimeLE
 
@@ -1145,7 +1145,7 @@
 !EOP
 
       ! call ESMC_BaseTime base class function
-      call c_ESMC_BaseTimeGE(time1, time2, CESMF_TimeGE)
+      call c_esmcf_basetimeGE(time1, time2, CESMF_TimeGE)
 
       end function CESMF_TimeGE
 
