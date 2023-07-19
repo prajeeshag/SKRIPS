@@ -5,7 +5,6 @@
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 ! NASA Goddard Space Flight Center.
 ! Licensed under the University of Illinois-NCSA License.
-#define FILENAME "mitgcm_wrf.F90"
 !
 !-----------------------------------------------------------------------
 !     Main function
@@ -31,8 +30,12 @@
 !     Initialize ESMF framework
 !-----------------------------------------------------------------------
 !
-      !call ESMF_Initialize(logkindflag=ESMF_LOGKIND_Multi_On_Error,    &
+
+#ifdef DEBUG
       call ESMF_Initialize(logkindflag=ESMF_LOGKIND_Multi,    &
+#else
+      call ESMF_Initialize(logkindflag=ESMF_LOGKIND_Multi_On_Error,    &
+#endif
                            defaultCalkind=ESMF_CALKIND_GREGORIAN,       &
                            vm=vm, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &

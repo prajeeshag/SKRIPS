@@ -6,7 +6,6 @@
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 ! NASA Goddard Space Flight Center.
 ! Licensed under the University of Illinois-NCSA License.
-#define FILENAME "mod_esmf_esm.F90"
 !
 !-----------------------------------------------------------------------
 !     ESM gridded component code 
@@ -59,7 +58,7 @@
 !
       call NUOPC_CompDerive(driver, NUOPC_SetServices, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 !
 !-----------------------------------------------------------------------
 !     Attach specializing methods 
@@ -69,13 +68,13 @@
                                 specLabel=NUOPC_Label_SetModelServices, &
                                 specRoutine=ESM_SetModelServices, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 !
       call NUOPC_CompSpecialize(driver,                                  &
                                 specLabel=NUOPC_Label_SetRunSequence,   &
                                 specRoutine=ESM_SetRunSequence, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 !
       end subroutine ESM_SetServices
 !
@@ -115,11 +114,11 @@
       call NUOPC_DriverAddComp(driver, "ATM", ATM_SetServices,           &
                                petList=petList,comp=child, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
       call ESMF_AttributeSet(child, name="Verbosity", value="high",     &
                              rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
       deallocate(petList)
 
       allocate(petList(cpuOCN))
@@ -135,11 +134,11 @@
       call NUOPC_DriverAddComp(driver, "OCN", OCN_SetServices,           &
                                petList=petList,comp=child, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
       call ESMF_AttributeSet(child, name="Verbosity", value="high",    &
                              rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
       deallocate(petList)
 !
 !-----------------------------------------------------------------------
@@ -152,11 +151,11 @@
                            compSetServicesRoutine=CPL_SetServices,      &
                            comp=connector, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
       call ESMF_AttributeSet(connector, name="Verbosity", value="high", &
                              rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
 
       call NUOPC_DriverAddComp(driver,                                   &
                            srcCompLabel="OCN",                          &
@@ -164,11 +163,11 @@
                            compSetServicesRoutine=CPL_SetServices,      &
                            comp=connector, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
       call ESMF_AttributeSet(connector, name="Verbosity", value="high", &
                              rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-                             line=__LINE__, file=FILENAME)) return
+                             line=__LINE__, file=__FILE__)) return
 !
 !-----------------------------------------------------------------------
 !     Set internal clock for application (driver). The time step must be 
@@ -182,11 +181,11 @@
                                   stopTime=esmStopTime,                 &
                                   rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 !
       call ESMF_GridCompSet(driver, clock=esmClock, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 !
       end subroutine ESM_SetModelServices 
 !
@@ -228,7 +227,7 @@
 
       call ESMF_GridCompGet(driver, vm=vm, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 
 
       ! read free format run sequence from config
@@ -244,10 +243,12 @@
       call NUOPC_FreeFormatLog(runSeqFF, rc=rc)
       call NUOPC_DriverIngestRunSequence(driver, runSeqFF, &
         autoAddConnectors=.true., rc=rc)
-      call NUOPC_DriverPrint(driver, orderflag=.true., rc=rc)
+      if (debugLevel > 0) then
+        call NUOPC_DriverPrint(driver, orderflag=.true., rc=rc)
+      endif
       call NUOPC_FreeFormatDestroy(runSeqFF, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
       call ESMF_VMWtime(timeEnd)
       write (msgString,*) "END TIME: ", timeEnd
       call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
