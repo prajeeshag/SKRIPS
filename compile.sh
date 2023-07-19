@@ -101,7 +101,7 @@ function __build_wrf_lib {
 
 function build_wrf_lib {
     __addarg "-h" "--help" "help" "optional" "" "Build the WRF as library"
-    __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "-j" "--jobs" "storevalue" "optional" "16" "Allow N parallel jobs at once"
     __addarg "" "--clean" "flag" "optional" "" "clean the build"
     __parseargs "$@"
 
