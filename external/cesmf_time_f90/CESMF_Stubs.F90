@@ -49,8 +49,8 @@ CONTAINS
 
 ! NOOP
    SUBROUTINE CESMF_Initialize( vm, defaultcalkind, rc )
-      USE esmf_basemod
-      USE esmf_calendarmod
+      USE cesmf_basemod
+      USE cesmf_calendarmod
       TYPE(CESMF_VM),           INTENT(IN   ), OPTIONAL :: vm
       TYPE(CESMF_CalendarType), INTENT(IN   ), OPTIONAL :: defaultcalkind
       INTEGER,                 INTENT(  OUT), OPTIONAL :: rc
@@ -90,7 +90,7 @@ CONTAINS
 
 ! NOOP
    SUBROUTINE CESMF_Finalize( rc )
-      USE esmf_basemod
+      USE cesmf_basemod
       INTEGER, INTENT(  OUT), OPTIONAL :: rc
 #if (defined SPMD) || (defined COUP_CSM)
 #include <mpif.h>
@@ -115,7 +115,7 @@ CONTAINS
 
 ! NOOP
    SUBROUTINE CESMF_LogWrite( msg, MsgType, line, file, method, log, rc )
-      USE esmf_basemod
+      USE cesmf_basemod
       CHARACTER(LEN=*), INTENT(IN) :: msg
       TYPE(CESMF_MsgType), INTENT(IN) :: msgtype
       INTEGER, INTENT(IN), OPTIONAL :: line

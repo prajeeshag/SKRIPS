@@ -34,13 +34,14 @@ endif
 include $(ESMFMKFILE)
 include ./wrflib.mk
 
+FC=$(FC_CPL)
 
 %.o : %.f90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
+	$(FC) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
 
 %.f90 : %.F90
 	#cpp $< | sed 's/_nl_/\n/g' > $@
-	$(ESMF_F90COMPILER) -cpp -E $< | sed 's/_nl_/\n/g' > $@
+	$(FC) -cpp -E $< | sed 's/_nl_/\n/g' > $@
 
 % : %.c
 	$(ESMF_CXXCOMPILER) -c $(ESMF_CXXCOMPILEOPTS) $(ESMF_CXXCOMPILEPATHSLOCAL) $(ESMF_CXXCOMPILEPATHS) $(ESMF_CXXCOMPILECPPFLAGS) $<

@@ -17,6 +17,6 @@ include ${WRF_DIR}/configure.wrf_cpl
 WRF_LIB = \
   ${WRF_DIR}/main/module_wrf_top.o \
   ${WRF_DIR}/main/libwrflib.a \
-  $(LDFLAGS) \
-  $(LIB)
+  $(LIB) 
+#  $(LDFLAGS) \
 
