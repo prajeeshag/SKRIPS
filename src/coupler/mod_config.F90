@@ -6,7 +6,6 @@
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 ! NASA Goddard Space Flight Center.
 ! Licensed under the University of Illinois-NCSA License.
-#define FILENAME "mod_config.F90" 
 !
 !-----------------------------------------------------------------------
 !     Module for ESM configuration file 
@@ -54,7 +53,7 @@
 !
       call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-          line=__LINE__, file=FILENAME)) return
+          line=__LINE__, file=__FILE__)) return
 !
 !-----------------------------------------------------------------------
 !     Read configuration file 
@@ -66,17 +65,17 @@
 !
         cf = ESMF_ConfigCreate(rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
-            line=__LINE__, file=FILENAME)) return
+            line=__LINE__, file=__FILE__)) return
 !
         call ESMF_ConfigLoadFile(cf, trim(config_fname), rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
-            line=__LINE__, file=FILENAME)) return
+            line=__LINE__, file=__FILE__)) return
 
         ! Set debug level 
         call ESMF_ConfigGetAttribute(cf, debugLevel,                    &
                                      label='DebugLevel:', rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
-            line=__LINE__, file=FILENAME)) return
+            line=__LINE__, file=__FILE__)) return
 
 
         ! Set simulation start/stop time 
@@ -97,7 +96,7 @@
                           h=start_hour, m=start_minute, s=start_second, &
                           calkindflag=ESMF_CALKIND_GREGORIAN, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
-            line=__LINE__, file=FILENAME)) return
+            line=__LINE__, file=__FILE__)) return
 
         call ESMF_ConfigGetAttribute(cf, stop_year,                     &
                                      label='StopYear:', rc=rc)
@@ -116,7 +115,7 @@
                           h=stop_hour, m=stop_minute, s=stop_second,    &
                           calkindflag=ESMF_CALKIND_GREGORIAN, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
-            line=__LINE__, file=FILENAME)) return
+            line=__LINE__, file=__FILE__)) return
 
         ! Set simulation time step
         call ESMF_ConfigGetAttribute(cf, esm_step_seconds,              &
