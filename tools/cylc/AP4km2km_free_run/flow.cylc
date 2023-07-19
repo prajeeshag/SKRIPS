@@ -4,66 +4,45 @@
 #
 # NOTE:
 #   Mininum RUNCYCLE should be P1D
+
 @{
-ARCHIVE_PATH="/lustre2/project/k1028/pag/ARCHIVE/AP4km2km_FreeRun"
-WPS_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WPS"
-WRF_PATH="/lustre2/project/k1028/pag/s2s/build_WRF/WRF"
-ENV_FILE="/lustre2/project/k1028/pag/s2s/env.shaheen_intel"
-SKRIPS_EXE="/project/k1028/pag/s2s/SKRIPS/build/AP4km2km/438/main/skrips.exe"
-ISODATETIME="/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime"
-
-SETUP_DIR="/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun"
-ERA_DATA=SETUP_DIR+"/ERA_metgrid"
-GLORYS_DATA=SETUP_DIR+"/GLORYS_bnd"
-SETUP_RUN_DIR=SETUP_DIR+"/RUN"
-
-UNGRIB_EXE=WPS_PATH+"/ungrib.exe"
-METGRID_DIR=WPS_PATH+"/metgrid"
-METGRID_EXE=METGRID_DIR+"/metgrid.exe"
-LINK_GRIB=WPS_PATH+"/link_grib.csh"
-REAL_EXE=WRF_PATH+"/main/real.exe"
-
-# Run 1 hour extra because WRF sometimes fails to write restart files
-OFFSETHOURS="1"
-RUNCYCLE="P2D"
-OUTPUT_FREQ_MINUTES="180"
-ATM_TIME_STEP="20"
-OCN_TIME_STEP="30"
-CPL_TIME_STEP="300"
+RUNCYCLE="P20D"
 }
-
 
 [scheduling]
     initial cycle point = 2000-01-01
-    final cycle point = 2000-01-06
+    final cycle point = 2021-01-01
     [[graph]]
         @RUNCYCLE = """
             run_skrips[-@RUNCYCLE]:submitted => setup_rundir 
             setup_rundir => link_real_out:fail? => run_real => archive_real_out
             (run_real | link_real_out:succeed?) & archive_restarts[-@RUNCYCLE] => link_restarts
-            link_restarts => run_skrips => archive_restarts 
+            link_restarts => run_skrips => archive_restarts
             run_skrips => archive_outputs
             archive_outputs & archive_restarts => scrap_rundir
         """
 [runtime]
     [[root]]
-        work sub-directory = $CYLC_TASK_CYCLE_POINT/
-        [[[environment]]]
-            RUNCYCLE=@RUNCYCLE
-            ISODATETIME=@ISODATETIME
-            SETUP_RUN_DIR=@SETUP_RUN_DIR
-            OUTPUT_FREQ_MINUTES=@OUTPUT_FREQ_MINUTES
-            ATM_TIME_STEP=@ATM_TIME_STEP
-            OCN_TIME_STEP=@OCN_TIME_STEP
-            CPL_TIME_STEP=@CPL_TIME_STEP
-            ERA_DATA=@ERA_DATA
-            ENV_FILE=@ENV_FILE
-            REAL_EXE=@REAL_EXE
-            SKRIPS_EXE=@SKRIPS_EXE
-            ARCHIVE_PATH=@ARCHIVE_PATH
-            GLORYS_DATA=@GLORYS_DATA
-            OFFSETHOURS=@OFFSETHOURS
-
+      work sub-directory = $CYLC_TASK_CYCLE_POINT/
+      [[[environment]]]
+        ARCHIVE_PATH=/lustre2/project/k1028/pag/ARCHIVE/AP4km2km_20y
+        ENV_FILE=/lustre2/project/k1028/pag/s2s/env.shaheen_intel
+        SKRIPS_EXE=/project/k1028/pag/s2s/SKRIPS/build/AP4km2km/438/main/skrips.exe
+        REAL_EXE=/lustre2/project/k1028/pag/s2s/build_WRF/WRF/main/real.exe
+        ISODATETIME=/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime
+        ERA_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun/ERA_metgrid
+        GLORYS_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun/GLORYS_bnd
+        SETUP_RUN_DIR=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun/RUN
+        # Run 1 hour extra because WRF sometimes fails to write restart files
+        OFFSETHOURS=0
+        RUNCYCLE=@RUNCYCLE
+        OUTPUT_FREQ_MINUTES=180
+        ATM_TIME_STEP=20
+        OCN_TIME_STEP=30
+        CPL_TIME_STEP=300
+      [[[directives]]]
+        --account = k1325
+      
     [[archive_real_out]]
         script = """
             echo "Copy WRF Input files"
@@ -187,7 +166,7 @@ CPL_TIME_STEP="300"
             if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
               export restart=".false."
             fi
-            export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc -l )
+            export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc )
             export time_step=$ATM_TIME_STEP
 
             # Copy runtime files
