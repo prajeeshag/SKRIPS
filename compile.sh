@@ -88,7 +88,7 @@ function __build_wrf_lib {
     # sed -i '1s|^|include $(ESMF_LIB)/esmf.mk |' configure.wrf
 
     # Replace esmf_time_f90 of WRF 
-    rm -rf external/WRF/external/esmf_time_f90 && ln -sf external/cesmf_time_f90 external/WRF/external/esmf_time_f90
+    rm -rf external/esmf_time_f90 && ln -sf ../external/cesmf_time_f90 external/esmf_time_f90
     # sed -i 's|$(WRF_SRC_ROOT_DIR)/external/esmf_time_f90|$(SKRIPS_DIR)/external/cesmf_time_f90|g' configure.wrf
     
     # Add ESMF INCLUDE
