@@ -37,7 +37,7 @@ include ./wrflib.mk
 FC=$(FC_CPL)
 
 %.o : %.f90
-	$(FC) -c  $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
+	$(FC) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
 
 %.f90 : %.F90
 	#cpp $< | sed 's/_nl_/\n/g' > $@
