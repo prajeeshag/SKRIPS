@@ -56,18 +56,24 @@ function set_machine {
 function __build_esmf_lib {
 
     jobs=$1
+    clean=$2
     echo "Building ESMF library...."
     cd $ESMF_DIR
+    if [[ $clean -eq 1 ]]; then 
+      make -j $jobs clean
+      return 
+    fi
     time make -j $jobs 2>&1 | tee $SKRIPS_DIR/esmf.compile.log
 }
 
 function build_esmf_lib {
     __addarg "-h" "--help" "help" "optional" "" "Build the ESMF library"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "" "--clean" "flag" "optional" "" "make clean"
     __parseargs "$@"
 
     __source_env
-    __build_esmf_lib $jobs
+    __build_esmf_lib $jobs $clean
 }
 
 function __build_wrf_lib {
