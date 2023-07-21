@@ -32,6 +32,9 @@ include ./wrflib.mk
 
 .SUFFIXES: .f90 .F90 .c .C
 
+ESMF_F90COMPILEOPTS += -g -traceback
+ESMF_F90LINKOPTS += -g -traceback
+
 %.o : %.f90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
 
