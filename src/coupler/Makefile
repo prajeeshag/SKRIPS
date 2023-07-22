@@ -34,10 +34,10 @@ endif
 include $(ESMFMKFILE)
 include ./wrflib.mk
 
-FC=$(FC_CPL)
+FC=$(ESMF_F90COMPILER)
 
 %.o : %.f90
-	$(FC) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
+	$(FC) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $(DEBUG_OPTS) $< -I${PWD} 
 
 %.f90 : %.F90
 	#cpp $< | sed 's/_nl_/\n/g' > $@
@@ -53,7 +53,7 @@ FC=$(FC_CPL)
 
 # -----------------------------------------------------------------------------
 $(EXE): $(OBJECT_FILES) 
-	$(FC) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) -L../mitgcm -lmitgcmuv 
+	$(FC) $(ESMF_F90LINKOPTS) $(DEBUG_OPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) -L../mitgcm -lmitgcmuv 
 
 # module dependencies:
 mitgcm_wrf.o: mod_esmf_esm.o
