@@ -162,9 +162,16 @@ function build_skrips {
     __addarg "-h" "--help" "help" "optional" "" "Build the SKRIPS coupled model"
     __addarg "-e" "--exe" "storevalue" "required" "" "Path were mitgcm build directory (output of build_mitgcm_lib command)"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "" "--debug" "flag" "optional" "" "Add debug symbols"
+
     __parseargs "$@"
 
     __source_env
+
+    if [[ $debug -eq 1 ]]; then
+      echo "compiling with debug "
+      export DEBUG_OPTS="-g -O0"
+    fi
 
     # cd to the $exe, it must have created by the earlier commands by this time
     cd $exe
