@@ -22,5 +22,5 @@ NOOPTFLAGS='-O0 -fPIC'
 FFLAGS="-fPIC -convert big_endian -assume byterecl -align"
 
 FOPTIM='-O2'
-FOPTIM="$FOPTIM -ip -fp-model precise -traceback -ftz"
+FOPTIM="$FOPTIM -ip -fp-model precise -ftz"
 
