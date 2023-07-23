@@ -131,7 +131,6 @@
           petList(i) = i-1 + cpuATM
         enddo
       endif
-      print *, 'petList ocn - ', petList
       call NUOPC_DriverAddComp(driver, "OCN", OCN_SetServices,           &
                                petList=petList,comp=child, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &

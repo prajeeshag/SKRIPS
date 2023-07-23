@@ -168,15 +168,6 @@ contains
     !-------------------------------------------------------------------
     !
 
-    call ESMF_VMBarrier(vm,rc=rc)
-    print *, "BEFORE WRF_INIT in __FILE__ on line __LINE__"
-
-    !call wrf_set_dm_communicator(comm)
-    !call wrf_init()
-   
-    call ESMF_VMBarrier(vm,rc=rc)
-    print *, "After WRF_INIT in __FILE__ on line __LINE__"
-
     call get_ijk_from_grid( &
       head_grid ,                   &
       ids, ide, jds, jde, kds, kde,    &
