@@ -24,7 +24,7 @@ module mod_esmf_atm
 
 
   integer :: NX, NY  ! Global NX, NY
-  integer :: isc, iec, jsc, jec ! Local bounds
+  integer :: isc=0, iec=-1, jsc=0, jec=-1 ! Local bounds
 
   integer :: localPet, petCount
   character(ESMF_MAXSTR) :: component_name
@@ -167,8 +167,16 @@ contains
     ! Initialize the gridded component
     !-------------------------------------------------------------------
     !
-    call wrf_set_dm_communicator(comm)
-    call wrf_init()
+
+    call ESMF_VMBarrier(vm,rc=rc)
+    print *, "BEFORE WRF_INIT in __FILE__ on line __LINE__"
+
+    !call wrf_set_dm_communicator(comm)
+    !call wrf_init()
+   
+    call ESMF_VMBarrier(vm,rc=rc)
+    print *, "After WRF_INIT in __FILE__ on line __LINE__"
+
     call get_ijk_from_grid( &
       head_grid ,                   &
       ids, ide, jds, jde, kds, kde,    &
@@ -183,6 +191,7 @@ contains
     jsc = jps
     iec = MIN(ipe, ide - 1)
     jec = MIN(jpe, jde - 1)
+
 
     call ATM_SetGridArrays(gcomp, atmGridIn, rc)
     _ERR_CHK(__FILE__,__LINE__)
@@ -337,12 +346,14 @@ contains
     type(ESMF_Array) :: arrX, arrY
     type(ESMF_StaggerLoc) :: staggerLoc
     type(ESMF_DistGrid) :: distGrid
+    !type(ESMF_DELayout) :: deLayout
     integer, allocatable :: deBlockList(:, :, :)
-    integer :: j, i, k
+    integer :: j, i, k, de, deCount
     integer, allocatable :: isc_global(:)
     integer, allocatable :: jsc_global(:)
     integer, allocatable :: iec_global(:)
     integer, allocatable :: jec_global(:)
+    integer, allocatable :: petMap(:)
 
 
     ! Local variable declarations
@@ -356,7 +367,7 @@ contains
     if (allocated(iec_global)) deallocate(iec_global); allocate(iec_global(petCount))
     if (allocated(jsc_global)) deallocate(jsc_global); allocate(jsc_global(petCount))
     if (allocated(jec_global)) deallocate(jec_global); allocate(jec_global(petCount))
-    
+
     call ESMF_VMAllGatherV(&
       vm, sendData=[isc], &
       sendCount=1, &
@@ -398,22 +409,30 @@ contains
     _ERR_CHK(__FILE__,__LINE__)
     
     
-    ! Get limits of the grid arrays (based on PET and nest level)
-    if (allocated(deBlockList)) deallocate(deBlockList)
-    allocate (deBlockList(2, 2, 1:petCount))
-
+    deCount = count(isc_global > 0) ! isc is 0 for ioservers
+    allocate (deBlockList(2, 2, 1:deCount))
+    allocate (petMap(1:deCount))
+    
+    de = 0 
     do tile = 1, petCount
-      deBlockList(1, 1, tile) = isc_global(tile)
-      deBlockList(1, 2, tile) = iec_global(tile) 
-      deBlockList(2, 1, tile) = jsc_global(tile) 
-      deBlockList(2, 2, tile) = jec_global(tile) 
+      if (isc_global(tile) < 1) continue
+      de = de + 1
+      deBlockList(1, 1, de) = isc_global(tile)
+      deBlockList(1, 2, de) = iec_global(tile) 
+      deBlockList(2, 1, de) = jsc_global(tile) 
+      deBlockList(2, 2, de) = jec_global(tile)
+      petMap(de) = tile-1
     end do
-
+    
+    !deLayout = ESMF_DELayoutCreate(petMap, rc=rc)
+    _ERR_CHK(__FILE__,__LINE__)
+    
     ! Create ESMF DistGrid based on model domain decomposition
     distGrid = ESMF_DistGridCreate( &
       minIndex=(/1, 1/), &
       maxIndex=(/NX, NY/), &
       deBlockList=deBlockList, &
+      !deLayout=deLayout, &
       rc=rc &
     )
     _ERR_CHK(__FILE__,__LINE__)
@@ -427,10 +446,17 @@ contains
                              name="atm_grid", rc=rc)
     _ERR_CHK(__FILE__,__LINE__)
 
+    deallocate(isc_global)
+    deallocate(iec_global)
+    deallocate(jsc_global)
+    deallocate(jec_global)
+    deallocate(deBlockList)
+    deallocate(petMap)
+
     ! Allocate coordinates
     call ESMF_GridAddCoord(gridIn, staggerLoc=staggerLoc, rc=rc)
     _ERR_CHK(__FILE__,__LINE__)
-
+    
     call ESMF_GridGetCoord(&
       gridIn, localDE=0, &
       staggerLoc=staggerLoc, &
@@ -462,7 +488,7 @@ contains
     if (associated(ptrY)) nullify (ptrY)
     if (associated(ptrX)) nullify (ptrX)
   
-    ! Write the grid to debug
+      ! Write the grid to debug
     if (debugLevel >= 1) then
       call ESMF_GridGetCoord(gridIn, &
                              staggerLoc=ESMF_STAGGERLOC_CENTER, &
@@ -479,15 +505,9 @@ contains
                            status=ESMF_FILESTATUS_NEW, rc=rc)
       _ERR_CHK(__FILE__,__LINE__)
     end if
-    
     ! Assign grid to gridded component
     call ESMF_GridCompSet(gcomp, grid=gridIn, rc=rc)
     _ERR_CHK(__FILE__,__LINE__)
-    if (allocated(isc_global)) deallocate(isc_global)
-    if (allocated(iec_global)) deallocate(iec_global)
-    if (allocated(jsc_global)) deallocate(jsc_global)
-    if (allocated(jec_global)) deallocate(jec_global)
-    if (allocated(deBlockList)) deallocate(deBlockList)
 
   end subroutine ATM_SetGridArrays
 
@@ -547,7 +567,6 @@ contains
         indexflag=ESMF_INDEX_GLOBAL, &
         name=entryNameWRF, rc=rc)
 
-
       !Put initial data into state
       call ESMF_FieldGet(field_tmp, localDe=0, farrayPtr=ptr2d_tmp, rc=rc)
       _ERR_CHK(__FILE__,__LINE__)
@@ -592,7 +611,7 @@ contains
     type(ESMF_State) :: esmfState
 
     rc = ESMF_SUCCESS
-
+    
     call ESMF_GridCompGet(&
       gcomp, name=component_name, &
       clock=clock, &
@@ -672,6 +691,7 @@ contains
     type(ESMF_State) :: esmfState
 
     rc = ESMF_SUCCESS
+
 
     call ESMF_GridCompGet(&
       gcomp, &

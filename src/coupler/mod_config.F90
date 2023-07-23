@@ -23,8 +23,9 @@
       use mod_types
 !
       implicit none
+
       contains
-!
+
       subroutine read_config(vm, rc)
       implicit none
 !
@@ -70,13 +71,6 @@
         call ESMF_ConfigLoadFile(cf, trim(config_fname), rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
             line=__LINE__, file=__FILE__)) return
-
-        ! Set debug level 
-        call ESMF_ConfigGetAttribute(cf, debugLevel,                    &
-                                     label='DebugLevel:', rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,  &
-            line=__LINE__, file=__FILE__)) return
-
 
         ! Set simulation start/stop time 
         call ESMF_ConfigGetAttribute(cf, start_year,                    &
@@ -133,12 +127,6 @@
         call ESMF_TimeIntervalSet(ocnTimeStep,                          &
                                   s=ocn_step_seconds, rc=rc)
 !
-        call ESMF_ConfigGetAttribute(cf, coupleMode,                    &
-                                     label='coupleMode:', rc=rc)
-        call ESMF_ConfigGetAttribute(cf, cpuOCN,                        &
-                                     label='cpuOCN:', rc=rc)
-        call ESMF_ConfigGetAttribute(cf, cpuATM,                        &
-                                     label='cpuATM:', rc=rc)
       end if
 
       currentTimeStep = 0
