@@ -21,7 +21,7 @@
 
 
       use module_wrf_quilt, only: compute_node, quilt
-      use module_wrf_top, only: wrf_init
+      use module_wrf_top, only: wrf_init, wrf_finalize
       ! use mod_config, only : set_field_dir
        
       implicit none
@@ -188,6 +188,7 @@
 !     Finalize component 
 !-----------------------------------------------------------------------
 !
+      if (is_wrf) call wrf_finalize(.true.)
       call ESMF_GridCompFinalize(esmComp, userRc=urc, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
           line=__LINE__, file=__FILE__))                                &
