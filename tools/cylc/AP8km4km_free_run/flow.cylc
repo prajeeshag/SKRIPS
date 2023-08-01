@@ -143,10 +143,8 @@ RUNCYCLE="P30D"
             echo "Move Outputs"
             mkdir -p $ARCHIVE_PATH/OUTPUTS/ATM
             mkdir -p $ARCHIVE_PATH/OUTPUTS/OCN
-            mkdir -p $ARCHIVE_PATH/OUTPUTS/LOG
             cp wrfout_* $ARCHIVE_PATH/OUTPUTS/ATM && rm -f wrfout_* 
             cp *.data *.meta $ARCHIVE_PATH/OUTPUTS/OCN && rm -f *.data *.meta
-            cp PET*.ESMF_LogFile STDERR.* STDOUT.* $ARCHIVE_PATH/OUTPUTS/LOG
         """
         platform=shaheen_login
 
