@@ -18,13 +18,16 @@ RUNCYCLE="P30D"
             setup_rundir => link_real_out:fail? => ungrib => metgrid => real => archive_real_out
             (real | link_real_out:succeed?) & archive_restarts[-@RUNCYCLE] => link_restarts
             link_restarts => skrips => archive_restarts
-            skrips => archive_outputs
-            archive_outputs & archive_restarts => scrap_rundir
+            skrips => archive_wrf_outputs
+            skrips => prepare_mitgcm2nc4 => mitgcm2nc4 => archive_mitgcm_outputs
+            archive_wrf_outputs & archive_mitgcm_outputs & archive_restarts => scrap_rundir
         """
 [runtime]
     [[root]]
       work sub-directory = $CYLC_TASK_CYCLE_POINT/
       [[[environment]]]
+        GLOBUSCMD="globus-url-copy -vb -p 4 -cd -cc 16 "
+        PYTHON=/project/k1028/pag/mambaforge/bin/python
         ARCHIVE_PATH=/lustre2/project/k1028/pag/ARCHIVE/AP8km4km_20y
         ENV_FILE=/lustre2/project/k1028/pag/s2s/env.shaheen_intel
         SKRIPS_EXE=/project/k1028/pag/SKRIPS_Wrap/build/AP8km4km/238/main/skrips.exe
@@ -138,15 +141,59 @@ RUNCYCLE="P30D"
         """
         platform=shaheen_login
 
-    [[archive_outputs]]
+    [[archive_wrf_outputs]]
         script = """
             echo "Move Outputs"
             mkdir -p $ARCHIVE_PATH/OUTPUTS/ATM
-            mkdir -p $ARCHIVE_PATH/OUTPUTS/OCN
-            cp wrfout_* $ARCHIVE_PATH/OUTPUTS/ATM && rm -f wrfout_* 
-            cp *.data *.meta $ARCHIVE_PATH/OUTPUTS/OCN && rm -f *.data *.meta
+            $GLOBUSCMD file:///$(pwd)/wrfout_* $ARCHIVE_PATH/OUTPUTS/ATM/
+        """
+        platform=dm2
+
+    [[prepare_mitgcm2nc4]]
+        script = """
+          mkdir -p $ARCHIVE_PATH/AUX/
+          # Copy all grid data, this is not written in a restart run
+          find -maxdepth 1 -name "??.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #2
+          find -maxdepth 1 -name "???.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #3
+          find -maxdepth 1 -name "?????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #5
+          find -maxdepth 1 -name "??????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #6
+          find -maxdepth 1 -name "???????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #7
+          find -maxdepth 1 -name "????????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #8
+
+          # Now remove the grid files
+          rm -f ??.??ta #2
+          rm -f ???.??ta #3
+          rm -f ?????.??ta #5
+          rm -f ??????.??ta #6
+          rm -f ???????.??ta #7
+          rm -f ????????.??ta #8
+
+          #link it from archive path
+          ln -s $ARCHIVE_PATH/AUX/??.??ta . #2
+          ln -s $ARCHIVE_PATH/AUX/???.??ta . #3
+          ln -s $ARCHIVE_PATH/AUX/?????.??ta . #5
+          ln -s $ARCHIVE_PATH/AUX/??????.??ta . #6
         """
         platform=shaheen_login
+
+    [[mitgcm2nc4]]
+        script = """
+          $PYTHON mitgcm2nc4.py
+        """
+        platform=shaheen
+        [[[directives]]]
+            --partition = workq
+            --nodes = 1
+            --ntasks=1
+            --time=24:00:00
+
+    [[archive_mitgcm_outputs]]
+        script = """
+            echo "Move Outputs"
+            mkdir -p $ARCHIVE_PATH/OUTPUTS/OCN
+            $GLOBUSCMD file:///$(pwd)/*_??????????????-??????????????.nc $ARCHIVE_PATH/OUTPUTS/OCN/
+        """
+        platform=dm2
 
     [[scrap_rundir]]
         script = """
@@ -183,6 +230,9 @@ RUNCYCLE="P30D"
             RUN_SECONDS=$(echo "$RUN_HOURS*3600" | bc)
             export startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
             export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
+
+            export ref_date=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYY-MM-DD)
+
             export endTime=$(echo "$RUN_SECONDS + $startTime" | bc)
             export chkptFreq=$RUN_DURATION_SECONDS
 
@@ -208,6 +258,9 @@ RUNCYCLE="P30D"
             envsubst < $SETUP_RUN_DIR/data > data
             envsubst < $SETUP_RUN_DIR/data.cal > data.cal
             envsubst < $SETUP_RUN_DIR/namelist.rc > namelist.rc
+            envsubst < $CYLC_WORKFLOW_RUN_DIR/etc/mitgcm2nc4.py > mitgcm2nc4.py
+
+
 
             # Link Ocean BND and INI files
             ln -sf $GLORYS_DATA/* .
