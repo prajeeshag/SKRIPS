@@ -19,6 +19,13 @@
 ################################################################################
 
 EXE=skrips.exe
+F90_FILES := $(wildcard *.F90)
+
+F90_INTERMEDIATE_FILES := $(patsubst %.F90, %.f90, $(F90_FILES))
+
+OBJECT_FILES := $(patsubst %.F90, %.o, $(F90_FILES))
+
+.PRECIOUS: $(F90_INTERMEDIATE_FILES)
 
 ifneq ($(origin ESMFMKFILE), environment)
 $(error Environment variable ESMFMKFILE was not set.)
@@ -27,19 +34,17 @@ endif
 include $(ESMFMKFILE)
 include ./wrflib.mk
 
-################################################################################
-################################################################################
-
-.SUFFIXES: .f90 .F90 .c .C
+FC=$(ESMF_F90COMPILER)
 
 ESMF_F90COMPILEOPTS += -g -traceback
 ESMF_F90LINKOPTS += -g -traceback
 
 %.o : %.f90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $< -I${PWD} 
+	$(FC) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $(DEBUG_OPTS) $< -I${PWD} 
 
-%.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $< -I${PWD}  
+%.f90 : %.F90
+	#cpp $< | sed 's/_nl_/\n/g' > $@
+	$(FC) -cpp -E $< | sed 's/_nl_/\n/g' > $@
 
 % : %.c
 	$(ESMF_CXXCOMPILER) -c $(ESMF_CXXCOMPILEOPTS) $(ESMF_CXXCOMPILEPATHSLOCAL) $(ESMF_CXXCOMPILEPATHS) $(ESMF_CXXCOMPILECPPFLAGS) $<
@@ -50,8 +55,8 @@ ESMF_F90LINKOPTS += -g -traceback
 
 
 # -----------------------------------------------------------------------------
-$(EXE): mod_config.o mod_types.o mod_esmf_ocn.o mod_esmf_atm.o mod_esmf_cpl.o mod_esmf_esm.o mitgcm_wrf.o
-	$(FC) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) -L../mitgcm -lmitgcmuv 
+$(EXE): $(OBJECT_FILES) 
+	$(FC) $(ESMF_F90LINKOPTS) $(DEBUG_OPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(WRF_LIB) -L../mitgcm -lmitgcmuv 
 
 # module dependencies:
 mitgcm_wrf.o: mod_esmf_esm.o
@@ -68,4 +73,4 @@ mod_types.o:
 clean:
 	rm -f $(EXE) *.o *.mod 
 distclean: clean
-	rm -f PET*.ESMF_LogFile mod*.mod *.a mit*.mod mitgcm_wrf* mod* namelist*
+	rm -f  *.mod *.a mit*.mod mitgcm_wrf* mod* namelist*
