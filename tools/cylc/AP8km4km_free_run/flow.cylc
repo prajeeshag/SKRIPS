@@ -11,7 +11,7 @@ RUNCYCLE="P30D"
 
 [scheduling]
     initial cycle point = 2000-01-01
-    final cycle point = 2021-01-01
+    final cycle point = 2021-03-01
     [[graph]]
         @RUNCYCLE = """
             skrips[-@RUNCYCLE]:submitted => setup_rundir
@@ -33,7 +33,7 @@ RUNCYCLE="P30D"
         SKRIPS_EXE=/project/k1028/pag/SKRIPS_Wrap/build/AP8km4km/238/main/skrips.exe
         REAL_EXE=/lustre2/project/k1028/pag/s2s/build_WRF/WRF/main/real.exe
         ISODATETIME=/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime
-        ERA_DATA=/project/k1254/hari/datasets/era_data/1959-2022/
+        ERA_DATA=/project/k1254/hari/datasets_share/1959-2022
         GLORYS_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP8km4km/GLORYS_bnd
         SETUP_RUN_DIR=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP8km4km/RUN
 
@@ -50,10 +50,27 @@ RUNCYCLE="P30D"
         deltaT=60 # Ocean timestep
         CPL_TIME_STEP=180
         cpuOCN=238
-        cpuATM=608
+        cpuATM=1024
+
+        NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
+        RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
+        RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
+        startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
+        startTimeNext=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total S)
+
+        INPUT_DIR=$ARCHIVE_PATH/INPUTS/$CYLC_WORKFLOW_NAME/${CYLC_TASK_CYCLE_POINT}
+
+        OUTPUT_DIR=$ARCHIVE_PATH/OUTPUTS/$CYLC_WORKFLOW_NAME
+        RESTART_DIR=$ARCHIVE_PATH/RESTART/$CYLC_WORKFLOW_NAME
+
+        # WRF Physics options
+        cu_physics=1, !Kain-Fritsch (new Eta) scheme 
+        #cu_physics=4, !Scale aware SAS scheme 
+        #cu_physics=0, !No convection scheme 
+        
 
       [[[directives]]]
-        --account = k1325
+        --account = k1668
 
     [[ungrib]]
         script = """
@@ -66,7 +83,7 @@ RUNCYCLE="P30D"
             --partition = workq
             --nodes = 1
             --ntasks=1
-            --time=24:00:00
+            --time=12:00:00
 
     [[metgrid]]
         script = """
@@ -77,15 +94,14 @@ RUNCYCLE="P30D"
         platform = shaheen
         [[[directives]]]
             --partition = workq
-            --nodes = 1 
+            --nodes = 1
             --ntasks=1
-            --time=24:00:00
+            --time=12:00:00
 
       
     [[archive_real_out]]
         script = """
             echo "Copy WRF Input files"
-            INPUT_DIR=$ARCHIVE_PATH/INPUTS/${CYLC_TASK_CYCLE_POINT}
             mkdir -p $INPUT_DIR
             cp wrfbdy_* wrffdda_* wrfinput_* wrflowinp_* $INPUT_DIR/
         """
@@ -93,24 +109,29 @@ RUNCYCLE="P30D"
 
     [[archive_restarts]]
         script = """
+            set -x
             echo "Move restart files"
-            mkdir -p $ARCHIVE_PATH/RESTARTS
+            mkdir -p $RESTART_DIR
             find . -type l -delete # Delete all softlinks
-            cp wrfrst_* pickup.* $ARCHIVE_PATH/RESTARTS && rm -f wrfrst_* pickup.*
+            nIter=$(echo "$startTimeNext/$deltaT" | bc)
+            nIter=$(printf "%010d\n" $nIter)
+
+            cp wrfrst_* $RESTART_DIR
+            cp pickup.$nIter.data $RESTART_DIR/pickup.$nIter.data
+            cp pickup.$nIter.meta $RESTART_DIR/pickup.$nIter.meta
         """
         platform=shaheen_login
 
     [[link_real_out]]
         script = """
             # Link real.exe output files
-            INPUT_DIR=$ARCHIVE_PATH/INPUTS/${CYLC_TASK_CYCLE_POINT}
-            source_file=$INPUT_DIR/wrfbdy_d01 
+            source_file=$INPUT_DIR/wrfbdy_d01
             [ -e "$source_file" ] && ln -s "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
-            source_file=$INPUT_DIR/wrffdda_d01 
+            source_file=$INPUT_DIR/wrffdda_d01
             [ -e "$source_file" ] && ln -s "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
-            source_file=$INPUT_DIR/wrfinput_d01 
+            source_file=$INPUT_DIR/wrfinput_d01
             [ -e "$source_file" ] && ln -s "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
-            source_file=$INPUT_DIR/wrflowinp_d01 
+            source_file=$INPUT_DIR/wrflowinp_d01
             [ -e "$source_file" ] && ln -s "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
         """
         platform=shaheen_login
@@ -124,19 +145,17 @@ RUNCYCLE="P30D"
                 exit 0
             fi
 
-            startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
-            
             nIter=$(echo "$startTime/$deltaT" | bc)
             nIter=$(printf "%010d\n" $nIter)
             dateStamp=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
 
-            source_file=$ARCHIVE_PATH/RESTARTS/pickup.$nIter.meta
+            source_file=$RESTART_DIR/pickup.$nIter.meta
             [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
 
-            source_file=$ARCHIVE_PATH/RESTARTS/pickup.$nIter.data 
+            source_file=$RESTART_DIR/pickup.$nIter.data
             [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
 
-            source_file=$ARCHIVE_PATH/RESTARTS/wrfrst_d01_$dateStamp 
+            source_file=$RESTART_DIR/wrfrst_d01_$dateStamp
             [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
         """
         platform=shaheen_login
@@ -144,8 +163,8 @@ RUNCYCLE="P30D"
     [[archive_wrf_outputs]]
         script = """
             echo "Move Outputs"
-            mkdir -p $ARCHIVE_PATH/OUTPUTS/ATM
-            $GLOBUSCMD file:///$(pwd)/wrfout_* $ARCHIVE_PATH/OUTPUTS/ATM/
+            mkdir -p $OUTPUT_DIR/ATM
+            $GLOBUSCMD file:///$(pwd)/wrfout_* $OUTPUT_DIR/ATM/
         """
         platform=dm2
 
@@ -185,13 +204,13 @@ RUNCYCLE="P30D"
             --partition = workq
             --nodes = 1
             --ntasks=1
-            --time=24:00:00
+            --time=12:00:00
 
     [[archive_mitgcm_outputs]]
         script = """
             echo "Move Outputs"
-            mkdir -p $ARCHIVE_PATH/OUTPUTS/OCN
-            $GLOBUSCMD file:///$(pwd)/*_??????????????-??????????????.nc $ARCHIVE_PATH/OUTPUTS/OCN/
+            mkdir -p $OUTPUT_DIR/OCN
+            $GLOBUSCMD file:///$(pwd)/*_??????????????-??????????????.nc $OUTPUT_DIR/OCN/
         """
         platform=dm2
 
@@ -205,10 +224,6 @@ RUNCYCLE="P30D"
     [[setup_rundir]]
         script = """
             set -x
-
-            NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
-            RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
-            RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
 
             END_DATE=${NEXT_CYCLE_POINT}
             result=$(echo "$RUN_DURATION_HOURS_FINAL < $RUN_DURATION_HOURS" | bc -l)
@@ -228,7 +243,6 @@ RUNCYCLE="P30D"
 
             RUN_DURATION_SECONDS=$(echo "$RUN_DURATION_HOURS*3600" | bc)
             RUN_SECONDS=$(echo "$RUN_HOURS*3600" | bc)
-            export startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
             export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
 
             export ref_date=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYY-MM-DD)
@@ -252,15 +266,16 @@ RUNCYCLE="P30D"
 
             # Copy runtime files
             cp $SETUP_RUN_DIR/* .
-            envsubst < $SETUP_RUN_DIR/namelist.esmf > namelist.esmf
-            envsubst < $SETUP_RUN_DIR/namelist.wps > namelist.wps
-            envsubst < $SETUP_RUN_DIR/namelist.input > namelist.input
-            envsubst < $SETUP_RUN_DIR/data > data
-            envsubst < $SETUP_RUN_DIR/data.cal > data.cal
-            envsubst < $SETUP_RUN_DIR/namelist.rc > namelist.rc
-            envsubst < $CYLC_WORKFLOW_RUN_DIR/etc/mitgcm2nc4.py > mitgcm2nc4.py
 
-
+            etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
+            cp $etcdir/* .
+            envsubst < $etcdir/namelist.esmf > namelist.esmf
+            envsubst < $etcdir/namelist.wps > namelist.wps
+            envsubst < $etcdir/namelist.input_40levs > namelist.input
+            envsubst < $etcdir/data > data
+            envsubst < $etcdir/data.cal > data.cal
+            envsubst < $etcdir/namelist.rc > namelist.rc
+            envsubst < $etcdir/mitgcm2nc4.py > mitgcm2nc4.py
 
             # Link Ocean BND and INI files
             ln -sf $GLORYS_DATA/* .
@@ -284,17 +299,17 @@ RUNCYCLE="P30D"
             --partition = workq
             --nodes = 5
             --ntasks-per-node=32
-            --time=24:00:00
+            --time=12:00:00
 
     [[skrips]]
         script = """
             source $ENV_FILE
-            srun --ntasks 846 $SKRIPS_EXE
+            srun $SKRIPS_EXE
         """
         platform = shaheen
         [[[directives]]]
             --partition = workq
-            --nodes = 27
-            --ntasks = 846
-            --time=24:00:00
+            --nodes = 40
+            --ntasks = 1262
+            --time=12:00:00
 
