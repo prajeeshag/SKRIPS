@@ -44,14 +44,14 @@ C     Nr  :: No. points in Z for full process domain.
       INTEGER Nr
       PARAMETER (
      &           sNx =  50,
-     &           sNy =  150,
+     &           sNy =  39,
      &           OLx =   4,
      &           OLy =   4,
      &           nSx =   1,
      &           nSy =   1,
-     &           nPx =   20,
-     &           nPy =   6,
-     &           Nx  = sNx*nSx*nPx,
+     &           nPx =   438,
+     &           nPy =   1,
+     &           Nx  = sNx*nSx*nPx, 
      &           Ny  = sNy*nSy*nPy,
      &           Nr  =  64)
 
@@ -64,4 +64,3 @@ C                routine buffers.
      &            MAX_OLY = OLy )
       integer     nobcs
       parameter ( nobcs = 4 )
-
