@@ -11,4 +11,3 @@ env
 esmf_application
 coupler/L3.C2.coupled_CA2018_shaheen/code
 env.mach
-code_*
