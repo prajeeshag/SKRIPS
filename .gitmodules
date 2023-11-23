@@ -13,3 +13,6 @@
 [submodule "tools/koi"]
 	path = tools/koi
 	url = https://github.com/wcarhart/koi.git
+[submodule "external/WPS"]
+	path = external/WPS
+	url = https://github.com/wrf-model/WPS.git
