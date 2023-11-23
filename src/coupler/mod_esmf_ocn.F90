@@ -279,28 +279,37 @@ module mod_esmf_ocn
 
   call OCN_Put(gcomp, iLoop_ocn, rc)
 
-  call ESMF_ClockPrint(clock, options="currTime", &
-         preString="------>Advancing OCN from: ", rc=rc)
+  call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-  
-  call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep,   &
-                     rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-      line=__LINE__, file=__FILE__)) return  ! bail out
-  
-  call ESMF_TimePrint(currTime + timeStep,                          &
-         preString="--------------------------------> to: ", rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
-      line=__LINE__, file=__FILE__)) return  ! bail out
+      line=__LINE__, file=FILENAME)) return
 
+  call ESMF_VMGet(vm, localPet=localPet, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+      line=__LINE__, file=FILENAME)) return
+
+  if (localPet == 0) then
+    call ESMF_ClockPrint(clock, options="currTime", &
+           preString="------>Advancing OCN from: ", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    
+    call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep,   &
+                       rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+    
+    call ESMF_TimePrint(currTime + timeStep,                          &
+           preString="--------------------------------> to: ", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU,    &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+  end if
   iLoop_ocn = iLoop_ocn + 1
   currentTimeStep = currentTimeStep + 1
 
   call ESMF_VMWtime(wTimeEnd)
   ocn_wall_time = ocn_wall_time + wTimeEnd - wTimeStart
 
-  end subroutine
+  end subroutine OCN_Run
 !
 !-----------------------------------------------------------------------
 !     Call Ocean model finalize routines

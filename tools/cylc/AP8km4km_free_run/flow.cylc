@@ -6,7 +6,7 @@
 #   Mininum RUNCYCLE should be P1D
 
 @{
-RUNCYCLE="P20D"
+RUNCYCLE="P30D"
 }
 
 [scheduling]
@@ -14,34 +14,70 @@ RUNCYCLE="P20D"
     final cycle point = 2021-01-01
     [[graph]]
         @RUNCYCLE = """
-            run_skrips[-@RUNCYCLE]:submitted => setup_rundir 
-            setup_rundir => link_real_out:fail? => run_real => archive_real_out
-            (run_real | link_real_out:succeed?) & archive_restarts[-@RUNCYCLE] => link_restarts
-            link_restarts => run_skrips => archive_restarts
-            run_skrips => archive_outputs
+            skrips[-@RUNCYCLE]:submitted => setup_rundir
+            setup_rundir => link_real_out:fail? => ungrib => metgrid => real => archive_real_out
+            (real | link_real_out:succeed?) & archive_restarts[-@RUNCYCLE] => link_restarts
+            link_restarts => skrips => archive_restarts
+            skrips => archive_outputs
             archive_outputs & archive_restarts => scrap_rundir
         """
 [runtime]
     [[root]]
       work sub-directory = $CYLC_TASK_CYCLE_POINT/
       [[[environment]]]
-        ARCHIVE_PATH=/lustre2/project/k1028/pag/ARCHIVE/AP4km2km_20y
+        ARCHIVE_PATH=/lustre2/project/k1028/pag/ARCHIVE/AP8km4km_20y
         ENV_FILE=/lustre2/project/k1028/pag/s2s/env.shaheen_intel
-        SKRIPS_EXE=/project/k1028/pag/s2s/SKRIPS/build/AP4km2km/438/main/skrips.exe
+        SKRIPS_EXE=/project/k1028/pag/SKRIPS_Wrap/build/AP8km4km/238/main/skrips.exe
         REAL_EXE=/lustre2/project/k1028/pag/s2s/build_WRF/WRF/main/real.exe
         ISODATETIME=/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime
-        ERA_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun/ERA_metgrid
-        GLORYS_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun/GLORYS_bnd
-        SETUP_RUN_DIR=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP4km2km/ClimFreeRun/RUN
+        ERA_DATA=/project/k1254/hari/datasets/era_data/1959-2022/
+        GLORYS_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP8km4km/GLORYS_bnd
+        SETUP_RUN_DIR=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP8km4km/RUN
+
+        LINK_GRIB=/lustre2/project/k1028/pag/s2s/build_WRF/WPS/link_grib.csh
+        UNGRIB_DIR=/lustre2/project/k1028/pag/s2s/build_WRF/WPS/ungrib
+        METGRID_DIR=/lustre2/project/k1028/pag/s2s/build_WRF/WPS/metgrid
+
         # Run 1 hour extra because WRF sometimes fails to write restart files
         OFFSETHOURS=0
         RUNCYCLE=@RUNCYCLE
-        OUTPUT_FREQ_MINUTES=180
-        ATM_TIME_STEP=20
-        OCN_TIME_STEP=30
-        CPL_TIME_STEP=300
+        history_interval=180 # WRF output 3 hourly
+        dumpFreq=21600 # 6 hourly
+        time_step=45 # Atm time step
+        deltaT=60 # Ocean timestep
+        CPL_TIME_STEP=180
+        cpuOCN=238
+        cpuATM=608
+
       [[[directives]]]
         --account = k1325
+
+    [[ungrib]]
+        script = """
+            source $ENV_FILE
+            ln -sf $UNGRIB_DIR .
+            srun ungrib/ungrib.exe
+        """
+        platform = shaheen
+        [[[directives]]]
+            --partition = workq
+            --nodes = 1
+            --ntasks=1
+            --time=24:00:00
+
+    [[metgrid]]
+        script = """
+            source $ENV_FILE
+            ln -sf $METGRID_DIR .
+            srun metgrid/metgrid.exe
+        """
+        platform = shaheen
+        [[[directives]]]
+            --partition = workq
+            --nodes = 1 
+            --ntasks=1
+            --time=24:00:00
+
       
     [[archive_real_out]]
         script = """
@@ -87,7 +123,7 @@ RUNCYCLE="P20D"
 
             startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
             
-            nIter=$(echo "$startTime/$OCN_TIME_STEP" | bc)
+            nIter=$(echo "$startTime/$deltaT" | bc)
             nIter=$(printf "%010d\n" $nIter)
             dateStamp=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
 
@@ -107,10 +143,8 @@ RUNCYCLE="P20D"
             echo "Move Outputs"
             mkdir -p $ARCHIVE_PATH/OUTPUTS/ATM
             mkdir -p $ARCHIVE_PATH/OUTPUTS/OCN
-            mkdir -p $ARCHIVE_PATH/OUTPUTS/LOG
             cp wrfout_* $ARCHIVE_PATH/OUTPUTS/ATM && rm -f wrfout_* 
             cp *.data *.meta $ARCHIVE_PATH/OUTPUTS/OCN && rm -f *.data *.meta
-            cp PET*.ESMF_LogFile STDERR.* STDOUT.* $ARCHIVE_PATH/OUTPUTS/LOG
         """
         platform=shaheen_login
 
@@ -123,6 +157,7 @@ RUNCYCLE="P20D"
 
     [[setup_rundir]]
         script = """
+            set -x
 
             NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
             RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
@@ -149,9 +184,7 @@ RUNCYCLE="P20D"
             export startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
             export startDate=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} -f CCYYMMDD)
             export endTime=$(echo "$RUN_SECONDS + $startTime" | bc)
-            export dumpFreq=$(echo "$OUTPUT_FREQ_MINUTES*60" | bc)
             export chkptFreq=$RUN_DURATION_SECONDS
-            export deltaT=$OCN_TIME_STEP
 
             export start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
             export start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
@@ -161,16 +194,16 @@ RUNCYCLE="P20D"
             export end_month=$($ISODATETIME ${END_DATE} -f MM)
             export end_day=$($ISODATETIME ${END_DATE} -f DD)
             export end_hour=$OFFSETHOURS
-            export history_interval=$OUTPUT_FREQ_MINUTES
             export restart=".true."
             if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
               export restart=".false."
             fi
             export restart_interval=$(echo "$RUN_DURATION_HOURS*60" | bc )
-            export time_step=$ATM_TIME_STEP
 
             # Copy runtime files
             cp $SETUP_RUN_DIR/* .
+            envsubst < $SETUP_RUN_DIR/namelist.esmf > namelist.esmf
+            envsubst < $SETUP_RUN_DIR/namelist.wps > namelist.wps
             envsubst < $SETUP_RUN_DIR/namelist.input > namelist.input
             envsubst < $SETUP_RUN_DIR/data > data
             envsubst < $SETUP_RUN_DIR/data.cal > data.cal
@@ -178,31 +211,37 @@ RUNCYCLE="P20D"
 
             # Link Ocean BND and INI files
             ln -sf $GLORYS_DATA/* .
+            
+            # Link ERA GRIB data
+            if [[ $start_year != $end_year ]] || [[ $start_month != $end_month ]]; then 
+              $LINK_GRIB $ERA_DATA/$start_year/${start_year}_${start_month}*.grib $ERA_DATA/$end_year/${end_year}_${end_month}*.grib
+            else
+              $LINK_GRIB $ERA_DATA/$start_year/${start_year}_${start_month}*.grib
+            fi
+
         """
         platform = shaheen_login
-
-    [[run_real]]
+    [[real]]
         script = """
             source $ENV_FILE
-            ln -sf $ERA_DATA/met*.nc .
             srun $REAL_EXE && rm -rf met*.nc rsl.*
         """
         platform = shaheen
         [[[directives]]]
             --partition = workq
-            --nodes = 50
+            --nodes = 5
             --ntasks-per-node=32
             --time=24:00:00
 
-    [[run_skrips]]
+    [[skrips]]
         script = """
             source $ENV_FILE
-            srun --ntasks 2038 $SKRIPS_EXE
+            srun --ntasks 846 $SKRIPS_EXE
         """
         platform = shaheen
         [[[directives]]]
             --partition = workq
-            --nodes = 64
-            --ntasks = 2038
+            --nodes = 27
+            --ntasks = 846
             --time=24:00:00
 

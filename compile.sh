@@ -3,7 +3,7 @@ set -e
 
 source ./tools/koi/koi
 koiname=$0
-koidescription="Compile SKRIPS model"
+koidescription="Compile SKRIPS model"             
 koicolors=0
 
 function __get_absolute_path {
@@ -56,39 +56,60 @@ function set_machine {
 function __build_esmf_lib {
 
     jobs=$1
+    clean=$2
     echo "Building ESMF library...."
     cd $ESMF_DIR
-    make -j $jobs 2>&1 | tee $SKRIPS_DIR/esmf.compile.log
+    if [[ $clean -eq 1 ]]; then 
+      make -j $jobs clean
+      return 
+    fi
+    time make -j $jobs 2>&1 | tee $SKRIPS_DIR/esmf.compile.log
 }
 
 function build_esmf_lib {
     __addarg "-h" "--help" "help" "optional" "" "Build the ESMF library"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "" "--clean" "flag" "optional" "" "make clean"
     __parseargs "$@"
 
     __source_env
-    __build_esmf_lib $jobs
+    __build_esmf_lib $jobs $clean
 }
 
 function __build_wrf_lib {
     jobs=$1
+    clean=$2
+    debug=$3
     cd $WRF_DIR
+
+    if [[ $clean -eq 1 ]]; then 
+      ./clean -a 
+      return 
+    fi
+    
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
-    cp configure.wrf configure.wrf_org
-    cp $SKRIPS_DIR/etc/$WRFCONFIGURE_FILE configure.wrf
-    ./compile -j $jobs em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
+    rm -rf external/esmf_time_f90 && ln -sf $SKRIPS_DIR/external/cesmf_time_f90 external/esmf_time_f90
+
+    if [[ $debug -eq 1 ]]; then
+      sed -i '/^FCDEBUG/s/.*/FCDEBUG=-g -O0/' configure.wrf
+    fi
+    
+    time ./compile -j $jobs em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
     linenumber=$(grep -n "bundled:" configure.wrf | cut -d : -f 1)
     head -n $((linenumber-1)) configure.wrf > configure.wrf_cpl
 }
 
 function build_wrf_lib {
     __addarg "-h" "--help" "help" "optional" "" "Build the WRF as library"
-    __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "-j" "--jobs" "storevalue" "optional" "16" "Allow N parallel jobs at once"
+    __addarg "" "--clean" "flag" "optional" "" "clean the build"
+    __addarg "" "--debug" "flag" "optional" "" "Compile with debug symbols"
     __parseargs "$@"
 
     __source_env
-    __build_wrf_lib $jobs
+    __build_wrf_lib $jobs $clean $debug
 }
+
 
 function __get_mitgcm_domain_parm {
     code=$1
@@ -141,9 +162,16 @@ function build_skrips {
     __addarg "-h" "--help" "help" "optional" "" "Build the SKRIPS coupled model"
     __addarg "-e" "--exe" "storevalue" "required" "" "Path were mitgcm build directory (output of build_mitgcm_lib command)"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "" "--debug" "flag" "optional" "" "Add debug symbols"
+
     __parseargs "$@"
 
     __source_env
+
+    if [[ $debug -eq 1 ]]; then
+      echo "compiling with debug "
+      export DEBUG_OPTS="-g -O0"
+    fi
 
     # cd to the $exe, it must have created by the earlier commands by this time
     cd $exe

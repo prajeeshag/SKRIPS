@@ -1,1 +1,0 @@
-../../L3.C1.coupled_RS2012_ring/utils/print_func.awk
