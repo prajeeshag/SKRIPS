@@ -36,12 +36,20 @@ C     == global variables ==
        DO bi = myBxLo(myThid), myBxHi(myThid)
          DO j=1-OLy,sNy+OLy
           DO i=1-OLx,sNx+OLx
+c         DO j=1,sNy
+c          DO i=1,sNx
             lwflux(i,j,bi,bj) = lwdown_ESMF(i,j,bi,bj)
             swflux(i,j,bi,bj) = swdown_ESMF(i,j,bi,bj)
             hl(i,j,bi,bj) = hl_ESMF(i,j,bi,bj)
             hs(i,j,bi,bj) = hs_ESMF(i,j,bi,bj)
-            uwind(i,j,bi,bj) = uwind_ESMF(i,j,bi,bj)
-            vwind(i,j,bi,bj) = vwind_ESMF(i,j,bi,bj)
+C            uwind(i,j,bi,bj) = uwind_ESMF(i,j,bi,bj)
+C            vwind(i,j,bi,bj) = vwind_ESMF(i,j,bi,bj)
+            uwind(i,j,bi,bj) =
+     &          angleCosC(i,j,bi,bj)*uwind_ESMF(i,j,bi,bj)
+     &          +angleSinC(i,j,bi,bj)*vwind_ESMF(i,j,bi,bj)
+            vwind(i,j,bi,bj) =
+     &          -angleSinC(i,j,bi,bj)*uwind_ESMF(i,j,bi,bj)
+     &          +angleCosC(i,j,bi,bj)*vwind_ESMF(i,j,bi,bj)
             atemp(i,j,bi,bj) = atemp_ESMF(i,j,bi,bj)
             aqh(i,j,bi,bj) = aqh_ESMF(i,j,bi,bj)
             evap(i,j,bi,bj) = evap_ESMF(i,j,bi,bj)
@@ -53,3 +61,6 @@ C     == global variables ==
 
       RETURN
       END
+
+
+
