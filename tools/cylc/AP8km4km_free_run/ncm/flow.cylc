@@ -29,17 +29,18 @@ RUNCYCLE="P30D"
       [[[environment]]]
         PYTHON=/g/home/pgopinathan/miniforge3/bin/python
         ARCHIVE_PATH=/g/home/pgopinathan/ARCHIVE/AP8km4km_20y
-        ENV_FILE=/lustre2/project/k1028/pag/s2s/env.shaheen_intel
-        SKRIPS_EXE=/project/k1028/pag/SKRIPS_Wrap/build/AP8km4km/238/main/skrips.exe
-        REAL_EXE=/lustre2/project/k1028/pag/s2s/build_WRF/WRF/main/real.exe
-        ISODATETIME=/project/k1028/pag/mambaforge/envs/cylc/bin/isodatetime
-        ERA_DATA=/project/k1254/hari/datasets_share/1959-2022
-        GLORYS_DATA=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP8km4km/GLORYS_bnd
-        SETUP_RUN_DIR=/lustre2/project/k1028/pag/SKRIPS_SETUPS/AP8km4km/RUN
+        ENV_FILE=/g/home/pgopinathan/SKRIPS/etc/env.ncm_intel
+        SKRIPS_EXE=/g/home/pgopinathan/SKRIPS/build/AP8km4km/238/main/skrips.exe
+        REAL_EXE=/g/home/pgopinathan/SKRIPS/external/WRF/main/real.exe
+        ISODATETIME=/g/home/pgopinathan/bin/isodatetime
+        SKRIPS_DIR=/g/home/pgopinathan/SKRIPS
+        ERA_DATA=/g260/ccc/data-from-kaust/ERA5_grib2/ERA5
+        GLORYS_DATA=/g260/ccc/data-from-kaust/SKRIPS_DATA/AP8km4km/GLORYS_bnd
+        SETUP_RUN_DIR=/g260/ccc/data-from-kaust/SKRIPS_DATA/AP8km4km/RUN
 
-        LINK_GRIB=/lustre2/project/k1028/pag/s2s/build_WRF/WPS/link_grib.csh
-        UNGRIB_DIR=/lustre2/project/k1028/pag/s2s/build_WRF/WPS/ungrib
-        METGRID_DIR=/lustre2/project/k1028/pag/s2s/build_WRF/WPS/metgrid
+        LINK_GRIB=/g/home/pgopinathan/SKRIPS/external/WPS/link_grib.csh
+        UNGRIB_DIR=/g/home/pgopinathan/SKRIPS/external/WPS/ungrib
+        METGRID_DIR=/g/home/pgopinathan/SKRIPS/external/WPS/metgrid
 
         # Run 1 hour extra because WRF sometimes fails to write restart files
         OFFSETHOURS=0
@@ -70,17 +71,15 @@ RUNCYCLE="P30D"
         
 
       [[[directives]]]
-        --account = k1668
 
     [[ungrib]]
         script = """
             source $ENV_FILE
             ln -sf $UNGRIB_DIR .
-            srun ungrib/ungrib.exe
+            ungrib/ungrib.exe
         """
-        platform = shaheen
+        platform = cluster
         [[[directives]]]
-            --partition = workq
             --nodes = 1
             --ntasks=1
             --time=12:00:00
@@ -89,11 +88,10 @@ RUNCYCLE="P30D"
         script = """
             source $ENV_FILE
             ln -sf $METGRID_DIR .
-            srun metgrid/metgrid.exe
+            metgrid/metgrid.exe
         """
-        platform = shaheen
+        platform = cluster
         [[[directives]]]
-            --partition = workq
             --nodes = 1
             --ntasks=1
             --time=12:00:00
@@ -105,7 +103,6 @@ RUNCYCLE="P30D"
             mkdir -p $INPUT_DIR
             cp wrfbdy_* wrffdda_* wrfinput_* wrflowinp_* $INPUT_DIR/
         """
-        platform=shaheen_login
 
     [[archive_restarts]]
         script = """
@@ -120,7 +117,6 @@ RUNCYCLE="P30D"
             cp pickup.$nIter.data $RESTART_DIR/pickup.$nIter.data
             cp pickup.$nIter.meta $RESTART_DIR/pickup.$nIter.meta
         """
-        platform=shaheen_login
 
     [[link_real_out]]
         script = """
@@ -134,7 +130,6 @@ RUNCYCLE="P30D"
             source_file=$INPUT_DIR/wrflowinp_d01
             [ -e "$source_file" ] && ln -s "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
         """
-        platform=shaheen_login
 
     [[link_restarts]]
         script = """
@@ -158,15 +153,13 @@ RUNCYCLE="P30D"
             source_file=$RESTART_DIR/wrfrst_d01_$dateStamp
             [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
         """
-        platform=shaheen_login
 
     [[archive_wrf_outputs]]
         script = """
             echo "Move Outputs"
             mkdir -p $OUTPUT_DIR/ATM
-            $GLOBUSCMD file:///$(pwd)/wrfout_* $OUTPUT_DIR/ATM/
+            cp wrfout_* $OUTPUT_DIR/ATM/
         """
-        platform=dm2
 
     [[prepare_mitgcm2nc4]]
         script = """
@@ -193,15 +186,13 @@ RUNCYCLE="P30D"
           ln -s $ARCHIVE_PATH/AUX/?????.??ta . #5
           ln -s $ARCHIVE_PATH/AUX/??????.??ta . #6
         """
-        platform=shaheen_login
 
     [[mitgcm2nc4]]
         script = """
           $PYTHON mitgcm2nc4.py
         """
-        platform=shaheen
+        platform=cluster
         [[[directives]]]
-            --partition = workq
             --nodes = 1
             --ntasks=1
             --time=12:00:00
@@ -210,16 +201,14 @@ RUNCYCLE="P30D"
         script = """
             echo "Move Outputs"
             mkdir -p $OUTPUT_DIR/OCN
-            $GLOBUSCMD file:///$(pwd)/*_??????????????-??????????????.nc $OUTPUT_DIR/OCN/
+            cp *_??????????????-??????????????.nc $OUTPUT_DIR/OCN/
         """
-        platform=dm2
 
     [[scrap_rundir]]
         script = """
             echo "Scrap run directory"
             rm -rf *
         """
-        platform=shaheen_login
 
     [[setup_rundir]]
         script = """
@@ -288,28 +277,25 @@ RUNCYCLE="P30D"
             fi
 
         """
-        platform = shaheen_login
     [[real]]
         script = """
             source $ENV_FILE
-            srun $REAL_EXE && rm -rf met*.nc rsl.*
+            mpirun -n 128 $REAL_EXE && rm -rf met*.nc rsl.*
         """
-        platform = shaheen
+        platform = cluster
         [[[directives]]]
-            --partition = workq
-            --nodes = 5
-            --ntasks-per-node=32
+            --nodes = 2
+            --ntasks = 128
             --time=12:00:00
 
     [[skrips]]
         script = """
             source $ENV_FILE
-            srun $SKRIPS_EXE
+            mpirun -n 1262 $SKRIPS_EXE
         """
-        platform = shaheen
+        platform = cluster
         [[[directives]]]
-            --partition = workq
-            --nodes = 40
+            --nodes = 20
             --ntasks = 1262
             --time=12:00:00
 
