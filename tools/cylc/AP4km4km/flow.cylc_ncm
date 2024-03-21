@@ -1,5 +1,5 @@
 #!EmPy
-# Cylc Suit for running SKRIPPS AP4km2km 20 year ERA-GLORIS
+# Cylc Suit for running SKRIPPS AP4km4km 20 year ERA-GLORIS
 # Author: Prajeesh
 #
 # NOTE:
@@ -7,16 +7,22 @@
 
 @{
 RUNCYCLE="P30D"
+cpuOCN=238
+cpuATM=2944
+nNodes=50
+cpuTotal=cpuOCN+cpuATM
 }
 
 [scheduling]
     initial cycle point = 2000-01-01
     final cycle point = 2021-03-01
     [[graph]]
+           ##setup_rundir => link_real_out:fail? => ungrib => metgrid => real 
+            ##(real | link_real_out:succeed?) & archive_restarts[-@RUNCYCLE] => link_restarts
         @RUNCYCLE = """
             skrips[-@RUNCYCLE]:submitted => setup_rundir
-            setup_rundir => link_real_out:fail? => ungrib => metgrid => real => archive_real_out
-            (real | link_real_out:succeed?) & archive_restarts[-@RUNCYCLE] => link_restarts
+            setup_rundir => ungrib => metgrid => real 
+            real & archive_restarts[-@RUNCYCLE] => link_restarts
             link_restarts => skrips => archive_restarts
             skrips => archive_wrf_outputs
             skrips => prepare_mitgcm2nc4 => mitgcm2nc4 => archive_mitgcm_outputs
@@ -28,7 +34,7 @@ RUNCYCLE="P30D"
       work sub-directory = $CYLC_TASK_CYCLE_POINT/
       [[[environment]]]
         PYTHON=/g/home/pgopinathan/miniforge3/bin/python
-        ARCHIVE_PATH=/g260/ccc/pgopinathan/ARCHIVE/AP8km4km_20y
+        ARCHIVE_PATH=/g260/ccc/pgopinathan/ARCHIVE/AP4km4km_20y
         ENV_FILE=/g/home/pgopinathan/SKRIPS/etc/env.ncm_intel
         SKRIPS_EXE=/g/home/pgopinathan/SKRIPS/build/AP8km4km/238/main/skrips.exe
         REAL_EXE=/g/home/pgopinathan/SKRIPS/external/WRF/main/real.exe
@@ -36,7 +42,7 @@ RUNCYCLE="P30D"
         SKRIPS_DIR=/g/home/pgopinathan/SKRIPS
         ERA_DATA=/g260/ccc/data-from-kaust/ERA5_grib2/ERA5
         GLORYS_DATA=/g260/ccc/data-from-kaust/SKRIPS_DATA/AP8km4km/GLORYS_bnd
-        SETUP_RUN_DIR=/g/home/pgopinathan/SKRIPS_DATA/AP8km4km/RUN
+        SETUP_RUN_DIR=/g/home/pgopinathan/SKRIPS_DATA/AP4km4km/RUN
 
         LINK_GRIB=/g/home/pgopinathan/SKRIPS/external/WPS/link_grib.csh
         UNGRIB_DIR=/g/home/pgopinathan/SKRIPS/external/WPS/ungrib
@@ -47,17 +53,21 @@ RUNCYCLE="P30D"
         RUNCYCLE=@RUNCYCLE
         history_interval=180 # WRF output 3 hourly
         dumpFreq=21600 # 6 hourly
-        time_step=45 # Atm time step
+        time_step=20 # Atm time step
         deltaT=60 # Ocean timestep
-        CPL_TIME_STEP=180
-        cpuOCN=238
-        cpuATM=1024
+        CPL_TIME_STEP=60
 
+        cpuOCN=@cpuOCN
+        cpuATM=@cpuATM
+        cpuTotal=@cpuTotal
         NEXT_CYCLE_POINT=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} --offset1=${RUNCYCLE})
         RUN_DURATION_HOURS=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
         RUN_DURATION_HOURS_FINAL=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} --as-total H)
         startTime=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${CYLC_TASK_CYCLE_POINT} --as-total S)
         startTimeNext=$($ISODATETIME ${CYLC_WORKFLOW_INITIAL_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total S)
+        start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
+        start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
+        start_day=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f DD)
 
         INPUT_DIR=$ARCHIVE_PATH/INPUTS/$CYLC_WORKFLOW_NAME/${CYLC_TASK_CYCLE_POINT}
 
@@ -65,9 +75,9 @@ RUNCYCLE="P30D"
         RESTART_DIR=$ARCHIVE_PATH/RESTART/$CYLC_WORKFLOW_NAME
 
         # WRF Physics options
-        cu_physics=1, !Kain-Fritsch (new Eta) scheme 
+        #cu_physics=1, !Kain-Fritsch (new Eta) scheme 
         #cu_physics=4, !Scale aware SAS scheme 
-        #cu_physics=0, !No convection scheme 
+        cu_physics=0, !No convection scheme 
         
 
       [[[directives]]]
@@ -213,7 +223,7 @@ RUNCYCLE="P30D"
     [[setup_rundir]]
         script = """
             set -x
-
+            pwd
             END_DATE=${NEXT_CYCLE_POINT}
             result=$(echo "$RUN_DURATION_HOURS_FINAL < $RUN_DURATION_HOURS" | bc -l)
             if [ "$result" -eq 1 ]; then
@@ -238,14 +248,11 @@ RUNCYCLE="P30D"
 
             export endTime=$(echo "$RUN_SECONDS + $startTime" | bc)
             export chkptFreq=$RUN_DURATION_SECONDS
-
-            export start_year=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
-            export start_month=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f MM)
-            export start_day=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f DD)
             export start_hour=0
             export end_year=$($ISODATETIME ${END_DATE} -f CCYY)
             export end_month=$($ISODATETIME ${END_DATE} -f MM)
             export end_day=$($ISODATETIME ${END_DATE} -f DD)
+
             export end_hour=$OFFSETHOURS
             export restart=".true."
             if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
@@ -266,8 +273,6 @@ RUNCYCLE="P30D"
             envsubst < $etcdir/namelist.rc > namelist.rc
             envsubst < $etcdir/mitgcm2nc4.py > mitgcm2nc4.py
 
-            # Link Ocean BND and INI files
-            ln -sf $GLORYS_DATA/* .
             
             # Link ERA GRIB data
             if [[ $start_year != $end_year ]] || [[ $start_month != $end_month ]]; then 
@@ -290,12 +295,16 @@ RUNCYCLE="P30D"
 
     [[skrips]]
         script = """
+            etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
+            envsubst < $etcdir/namelist.esmf > namelist.esmf
+            # Link Ocean BND and INI files
+            ln -sf $GLORYS_DATA/* .
             source $ENV_FILE
-            mpirun -n 1262 $SKRIPS_EXE
+            mpirun -n $cpuTotal $SKRIPS_EXE
         """
         platform = cluster
         [[[directives]]]
-            --nodes = 20
-            --ntasks = 1262
-            --time=12:00:00
+            --nodes = @nNodes
+            --ntasks = @cpuTotal
+            --time=24:00:00
 
