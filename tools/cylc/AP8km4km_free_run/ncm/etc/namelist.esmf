@@ -1,6 +1,0 @@
-&coupler_nml
-cpuATM=$cpuATM,
-cpuOCN=$cpuOCN,
-debugLevel=0,
-coupleMode=2,
-/
