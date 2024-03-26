@@ -16,3 +16,6 @@
 [submodule "external/WPS"]
 	path = external/WPS
 	url = https://github.com/wrf-model/WPS.git
+[submodule "external/jasper"]
+	path = external/jasper
+	url = https://github.com/jasper-software/jasper
