@@ -167,7 +167,7 @@ function __build_wrf_lib {
     rm -rf external/esmf_time_f90 && ln -sf $SKRIPS_DIR/external/cesmf_time_f90 external/esmf_time_f90
 
     if [[ $debug -eq 1 ]]; then
-      sed -i '/^FCDEBUG/s/.*/FCDEBUG=-g -O0/' configure.wrf
+      sed -i '/^FCDEBUG/s/.*/FCDEBUG=-g -traceback/' configure.wrf
     fi
     
     time ./compile -j $jobs em_real 2>&1 | tee $SKRIPS_DIR/wrf.compile.log
@@ -246,7 +246,7 @@ function build_skrips {
 
     if [[ $debug -eq 1 ]]; then
       echo "compiling with debug "
-      export DEBUG_OPTS="-g -O0"
+      export DEBUG_OPTS="-g -traceback"
     fi
 
     # cd to the $exe, it must have created by the earlier commands by this time

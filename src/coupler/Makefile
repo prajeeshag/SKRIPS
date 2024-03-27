@@ -36,8 +36,8 @@ include ./wrflib.mk
 
 FC=$(ESMF_F90COMPILER)
 
-ESMF_F90COMPILEOPTS += -g -traceback
-ESMF_F90LINKOPTS += -g -traceback
+#ESMF_F90COMPILEOPTS += -g -traceback
+#ESMF_F90LINKOPTS += -g -traceback
 
 %.o : %.f90
 	$(FC) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(WRF_INC) $(ESMF_F90COMPILEFREENOCPP) $(DEBUG_OPTS) $< -I${PWD} 
