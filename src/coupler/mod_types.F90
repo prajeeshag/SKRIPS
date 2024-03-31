@@ -6,7 +6,6 @@
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 ! NASA Goddard Space Flight Center.
 ! Licensed under the University of Illinois-NCSA License.
-#define FILENAME "mod_types.F90" 
 !
 !-----------------------------------------------------------------------
 !     Module for user defined types 
@@ -95,9 +94,9 @@
       type(ESMF_TimeInterval) :: atmTimeStep
       integer :: currentTimeStep = 0
 
-      integer :: nList = 21
-      character(ESMF_MAXSTR), dimension(1:21) :: nuopc_entryNameList=&
-                   (/'LAND_MASK_VALUE','XLAT_VALUE','XLONG_VALUE',&
+      integer, parameter :: nList = 19
+      character(ESMF_MAXSTR), dimension(1:nList), parameter :: nuopc_entryNameList=&
+                   (/'LAND_MASK_VALUE',&
                      'LATENT_HEAT','SENSIBLE_HEAT',&
                      'SHORTWAVE_UP_FLUX','SHORTWAVE_DOWN_FLUX',&
                      'LONGWAVE_UP_FLUX','LONGWAVE_DOWN_FLUX',&
@@ -108,27 +107,49 @@
                      'REANALYSIS_SEA_SURFACE_TEMPERATURE',&
                      'ACTIVE_SEA_SURFACE_TEMPERATURE',&
                      'OCEAN_SURFACE_U','OCEAN_SURFACE_V'/)
-      character(ESMF_MAXSTR), dimension(1:21) :: wrf_nameList=&
-                   (/'LANDMASK','XLAT','XLONG',&
-                     'LH','HFX','SWUPB','SWDNB','LWUPB','LWDNB',&
-                     'U10','V10','T2','Q2',&
-                     'QFX','RAINCV','RAINSHV','RAINNCV',&
-                     'SST_INPUT','SST','UOCE','VOCE'/)
-      character(ESMF_MAXSTR), dimension(1:21) :: nuopc_entryUnitList=&
-                   (/'1','1','1',&
-                     'w/m^2','w/m^2','w/m^2','w/m^2','w/m^2','w/m^2',&
-                     'm/s','m/s','degree','kg/kg',&
-                     'kg/m2','mm','mm','mm',&
-                     'degree','degree','m/s','m/s'/)
-      logical, dimension(1:21) :: OCNtoATM=&
-                   (/.False.,.False.,.False.,.False.,.False.,.False.,&
-                     .False.,.False.,.False.,.False.,.False.,.False.,&
-                     .False.,.False.,.False.,.False.,.False.,.False.,&
-                     .True.,.True.,.True./)
-      logical, dimension(1:21) :: ATMtoOCN=&
-                   (/.True.,.True.,.True.,.True.,.True.,.True.,&
-                     .True.,.True.,.True.,.True.,.True.,.True.,&
-                     .True.,.True.,.True.,.True.,.True.,.True.,&
-                     .False.,.False.,.False./)
+      character(ESMF_MAXSTR), dimension(1:nList), parameter :: wrf_nameList=&
+                   (/'LANDMASK', &
+                     'LH','HFX', &
+                     'SWUPB','SWDNB', &
+                     'LWUPB','LWDNB',&
+                     'U10','V10', &
+                     'T2','Q2', &
+                     'QFX','RAINCV', &
+                     'RAINSHV','RAINNCV', &
+                     'SST_INPUT', 'SST', &
+                     'UOCE','VOCE'/)
+      character(ESMF_MAXSTR), dimension(1:nList), parameter :: nuopc_entryUnitList=&
+                   (/'1', &
+                     'w/m^2','w/m^2', &
+                     'w/m^2','w/m^2', &
+                     'w/m^2','w/m^2',&
+                     'm/s','m/s', &
+                     'degree','kg/kg',&
+                     'kg/m2','mm', &
+                     'mm','mm',&
+                     'degree','degree', &
+                     'm/s','m/s'/)
+      logical, dimension(1:nList), parameter :: OCNtoATM=&
+                (/.False., &
+                  .False., .False., &
+                  .False., .False., &
+                  .False., .False., &
+                  .False., .False., &
+                  .False., .False., &
+                  .False., .False., &
+                  .False., .False., &
+                  .False., .True., &
+                  .True.,.True./)
+      logical, dimension(1:nList), parameter :: ATMtoOCN= &
+                (/.True., &
+                  .True.,.True., &
+                  .True.,.True., &
+                  .True.,.True., &
+                  .True.,.True., &
+                  .True.,.True., &
+                  .True.,.True., &
+                  .True.,.True., &
+                  .True.,.False., &
+                  .False.,.False./)
 !
       end module mod_types

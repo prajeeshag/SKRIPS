@@ -1,0 +1,28 @@
+#!EmPy
+@{
+RUNCYCLE="P1Y"
+}
+
+[scheduling]
+    initial cycle point = 2000-01-01
+    final cycle point = 2021-03-01
+    [[graph]]
+        @RUNCYCLE = """
+           run_fix_time 
+        """
+
+[runtime]
+    [[run_fix_time]]
+      script = """
+       python $PYSCRT --path $ARCHIVE_PATH --file-glob wrfout_d01_${YYYY}*
+      """
+      work sub-directory = $CYLC_TASK_CYCLE_POINT/
+      platform = cluster
+      [[[environment]]]
+        ARCHIVE_PATH=/g260/ccc/pgopinathan/ARCHIVE/AP8km4km_20y/OUTPUTS/CPLD8km4km/ATM
+        ISODATETIME=/g/home/pgopinathan/bin/isodatetime
+        PYSCRT=$CYLC_WORKFLOW_RUN_DIR/etc/fix_taxis_wrf.py
+        YYYY=$($ISODATETIME ${CYLC_TASK_CYCLE_POINT} -f CCYY)
+
+      [[[directives]]]
+         --nodes = 1

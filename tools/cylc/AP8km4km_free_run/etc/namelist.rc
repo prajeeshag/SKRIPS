@@ -1,0 +1,19 @@
+
+StartYear:      $start_year
+StartMonth:     $start_month
+StartDay:       $start_day
+StartHour:      $start_hour
+StartMinute:    00
+StartSecond:    00
+
+StopYear:        $end_year
+StopMonth:       $end_month
+StopDay:         $end_day
+StopHour:        $end_hour
+StopMinute:      00
+StopSecond:      00
+
+EsmStepSeconds: $CPL_TIME_STEP
+ATMStepSeconds: $time_step
+OCNStepSeconds: $deltaT
+
