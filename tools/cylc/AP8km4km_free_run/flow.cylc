@@ -271,7 +271,7 @@ RUNCYCLE="P30D"
             cp $etcdir/* .
             envsubst < $etcdir/namelist.esmf > namelist.esmf
             envsubst < $etcdir/namelist.wps > namelist.wps
-            envsubst < $etcdir/namelist.input_40levs > namelist.input
+            envsubst < $etcdir/namelist.input > namelist.input
             envsubst < $etcdir/data > data
             envsubst < $etcdir/data.cal > data.cal
             envsubst < $etcdir/namelist.rc > namelist.rc
