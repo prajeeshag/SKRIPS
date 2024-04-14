@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 
 source ./tools/koi/koi
@@ -18,6 +19,7 @@ function __source_env {
         export WRF_DIR=$SKRIPS_DIR/external/WRF/
         export JASPER_DIR=$SKRIPS_DIR/external/jasper/
         export WPS_DIR=$SKRIPS_DIR/external/WPS/
+        export UPP_DIR=$SKRIPS_DIR/external/UPPV4.0.1/
         export ESMF_DIR=$SKRIPS_DIR/external/esmf/
         export ESMF_LIB=$ESMF_DIR/lib/lib$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/
         export ESMF_MOD=$ESMF_DIR/mod/mod$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/ 
@@ -107,13 +109,39 @@ function __build_wps {
    
     printf $WPS_CONFIG_OPT 
     printf $WPS_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wps.configure.log
-    wpsconfig=$SKRIPS_DIR/etc/$WPSCONFIGURE_FILE
 
-    if [ -f $wpsconfig ]; then
-      cp $wpsconfig configure.wps
-    fi
+    for i in $CONF_REPLACE; do
+        key=${i%%=>*} 
+        val=${i##*=>}
+        sed -i "s/$key/$val/g" configure.wps
+    done
 
     time ./compile 2>&1 | tee $SKRIPS_DIR/wps.compile.log
+}
+
+function __build_upp {
+    __source_env
+    echo $
+    jobs=$1
+    clean=$2
+    cd $UPP_DIR
+
+    if [[ $clean -eq 1 ]]; then 
+      ./clean -a 
+      return 
+    fi
+
+
+   
+    printf $UPP_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/upp.configure.log
+
+    for i in $CONF_REPLACE; do
+        key=${i%%=>*} 
+        val=${i##*=>}
+        sed -i "s/$key/$val/g" configure.upp
+    done
+
+    time ./compile 2>&1 | tee $SKRIPS_DIR/upp.compile.log
 }
 
 function build_jasper {
@@ -135,6 +163,14 @@ function build_wps {
     __build_wps $jobs $clean
 }
 
+function build_upp {
+    __addarg "-h" "--help" "help" "optional" "" "Build UPP"
+    __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
+    __addarg "" "--clean" "flag" "optional" "" "make clean"
+    __parseargs "$@"
+
+    __build_upp $jobs $clean
+}
 
 function build_esmf_lib {
     __addarg "-h" "--help" "help" "optional" "" "Build the ESMF library"
