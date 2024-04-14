@@ -12,3 +12,5 @@ esmf_application
 coupler/L3.C2.coupled_CA2018_shaheen/code
 env.mach
 libs
+external/UPPV4.0.1/include/
+external/UPPV4.0.1/src/lib/crtm2/src/include/
