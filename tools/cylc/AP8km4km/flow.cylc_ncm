@@ -28,6 +28,7 @@
 {% set ERA_DATA="/g260/ccc/data-from-kaust/ERA5_grib2/ERA5" %}
 {% set GLORYS_DATA="/g260/ccc/data-from-kaust/SKRIPS_DATA/AP8km4km/GLORYS_bnd" %}
 {% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
+{% set UPP_DIR = SKRIPS_DIR ~ "/external/UPPV4.0.1" %}
 
 {% set GEO_EM_FILE = "/g/home/pgopinathan/SKRIP_Grids/AP/4km/8km/geo_em.d01_mod.nc" %}
 {% set BATHY_FILE = "/g/home/pgopinathan/SKRIP_Grids/AP/4km/bathymetry.bin" %}
@@ -57,7 +58,7 @@
             wps_real & move_restarts[-{{ MAINCYCLE }}] => link_restarts
             link_restarts => skrips
             skrips => move_restarts
-            skrips => move_outputs
+            skrips => upp => move_outputs
             move_outputs & move_restarts => scrap_rundir
         """
         {{ POSTCYCLE }} = """
@@ -66,7 +67,7 @@
 
 [runtime]
     [[root]]
-      #work sub-directory = $CYLC_TASK_CYCLE_POINT/
+      work sub-directory = $CYLC_TASK_CYCLE_POINT/
       [[[environment]]]
 
         # Run 1 hour extra because WRF sometimes fails to write restart files
@@ -164,7 +165,6 @@
     [[link_restarts]]
         script = """
             echo "Link restart files"
-            cd ../skrips
             # Link restart files
             [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]] && \
             echo "Cold start: No restart to link" && exit 0
@@ -186,9 +186,9 @@
     [[move_outputs]]
         script = """
             echo "Move Outputs"
-            cd ../skrips/
             mkdir -p $OUTPUT_DIR/ATM
-            mv wrfout_* $OUTPUT_DIR/ATM/
+            mv wrfout_* wrfprs_* $OUTPUT_DIR/ATM/
+
             mkdir -p $OUTPUT_DIR/OCN
             mv *.data *.meta  $OUTPUT_DIR/OCN/
         """
@@ -229,12 +229,6 @@
             --ntasks=1
             --time=12:00:00
 
-    [[move_mitgcm_outputs]]
-        script = """
-            echo "Move Outputs"
-            cd ../skrips
-        """
-
     [[scrap_rundir]]
         script = """
             echo "Scrap run directory"
@@ -269,4 +263,65 @@
             --nodes = {{ nNodes }}
             --ntasks = {{ cpuTotal }}
             --time=24:00:00
+
+    [[upp]]
+      script = """
+       current_date=${CYLC_TASK_CYCLE_POINT}
+       
+       modelDataPath=$(pwd)
+       while [[ $current_date < $NEXT_CYCLE_POINT ]]; do
+            dateStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
+            inFile=${modelDataPath}/wrfout_d01_$dateStamp
+            oFile=$modelDataPath/wrfprs_d01_${dateStamp}.grb2
+
+            # Check if that file exists
+            if [[ ! -e ${inFileName} ]]; then
+              echo "ERROR: Can't find 'inFileName': ${inFileName}. Directory or file does not exist.  Exiting..."
+              echo "ERROR: Check if 'modelDataPath': ${modelDataPath} exists."
+              exit 1
+            fi
+            uppdir="upp/$dateStamp"
+            mkdir -p $uppdir && cd $uppdir
+            ln -fs ${txtCntrlFile} postxconfig-NT.txt
+            ln -fs {{ UPP_DIR }}/parm/post_avblflds.xml post_avblflds.xml
+            ln -fs {{ UPP_DIR }}/src/lib/g2tmpl/params_grib2_tbl_new params_grib2_tbl_new
+            ln -fs {{ UPP_DIR }}/parm/nam_micro_lookup.dat .
+            ln -fs {{ UPP_DIR }}/parm/hires_micro_lookup.dat .
+
+            ln -fs $CRTMDIR/EmisCoeff/IR_Water/Big_Endian/* .
+
+            ln -fs $CRTMDIR/EmisCoeff/IR_Land/SEcategory/Big_Endian/* .
+
+            ln -fs $CRTMDIR/AerosolCoeff/Big_Endian/AerosolCoeff.bin     ./
+            ln -fs $CRTMDIR/CloudCoeff/Big_Endian/CloudCoeff.bin         ./
+
+            ln -fs $CRTMDIR/SpcCoeff/Big_Endian/* .
+            ln -fs $CRTMDIR/TauCoeff/ODPS/Big_Endian/* .
+    
+            cat > itag <<EOF
+            ${inFileName}
+            netcdf
+            grib2
+            $dateStamp
+            NCAR
+            EOF
+            workdir=$(pwd)
+            cd -
+            echo "cd $workdir && {{ UPP_DIR }}/bin/unipost.exe && mv WRFPRS*.${tmmark} ../../$oFile" >> upp_job_list
+            current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmOutFreqMins }})M
+       done
+        {{ PARALLEL }} -n {{ cpuPerNode }} -a upp_job_list
+      """
+      platform = cluster
+      [[[environment]]]
+        txtCntrlFile=$CYLC_WORKFLOW_RUN_DIR/etc/postxconfig-NT-WRFPRS.txt # grib2
+        tmmark=tm00
+        #MP_SHARED_MEMORY=no
+        #MP_LABELIO=yes
+        CRTMDIR={{ UPP_DIR }}/src/lib/crtm2/src/fix
+
+      [[[directives]]]
+         --nodes = 1
+         --ntasks = 1
+
 
