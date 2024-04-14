@@ -22,8 +22,8 @@ function __source_env {
         export ESMF_LIB=$ESMF_DIR/lib/lib$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/
         export ESMF_MOD=$ESMF_DIR/mod/mod$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/ 
         export ESMFMKFILE=$ESMF_LIB/esmf.mk
-        export JASPERLIB=$SKRIPS_DIR/libs/jasper/lib64
-        export JASPERINC=$SKRIPS_DIR/libs/jasper/include
+        #export JASPERLIB=$SKRIPS_DIR/libs/jasper/lib64
+        #export JASPERINC=$SKRIPS_DIR/libs/jasper/include
     else
         echo "No env file found"
         echo "NOTE: try again after running: $0 set_machine MACHINENAME "

@@ -1,9 +1,9 @@
 &share
  wrf_core = 'ARW',
  max_dom = 1,
- start_date = "$start_year-$start_month-${start_day}_00:00:00"
- end_date = "$end_year-$end_month-${end_day}_00:00:00"
- interval_seconds = 21600,
+ start_date = "$start_year-$start_month-${start_day}_${start_hour}:00:00"
+ end_date = "$end_year-$end_month-${end_day}_${end_hour}:00:00"
+ interval_seconds = $interval_seconds,
 /
 
 &geogrid

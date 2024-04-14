@@ -83,7 +83,6 @@ debug_level              = 0,
  rdmaxalb                            = T
  rdlai2d                             = T
  ua_phys                             = T
- sf_surface_mosaic                   = 1
  swint_opt                           = 1
  /
 

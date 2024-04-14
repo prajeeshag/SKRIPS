@@ -23,9 +23,11 @@
 {% set REAL_EXE = SKRIPS_DIR ~ "/external/WRF/main/real.exe" %}
 {% set WRF_RUN_DIR = SKRIPS_DIR ~ "/external/WRF/test/em_real" %}
 
-{% set LINK_GRIB = SKRIPS_DIR ~ "/external/WPS/link_grib.csh" %}
-{% set UNGRIB_DIR = SKRIPS_DIR ~ "/external/WPS/ungrib" %}
-{% set METGRID_DIR = SKRIPS_DIR ~ "/external/WPS/metgrid" %}
+{% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
+
+{% set LINK_GRIB = WPS_DIR ~ "/link_grib.csh" %}
+{% set UNGRIB_DIR = WPS_DIR ~ "/ungrib" %}
+{% set METGRID_DIR = WPS_DIR ~ "/metgrid" %}
 {% set SKRIPS_DIR = SKRIPS_DIR ~ "/env.mach" %}
 
 
