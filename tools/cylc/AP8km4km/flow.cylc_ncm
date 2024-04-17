@@ -9,6 +9,7 @@
 {% set POSTCYCLE="P1M" %}
 {% set cpuOCN=238 %}
 {% set cpuATM=1024 %}
+{% set nUPPjobs=4 %}
 {% set nNodes=20 %}
 {% set wpsInputSec=21600 %}
 {% set cpuPerNode=64 %}
@@ -28,7 +29,8 @@
 {% set ERA_DATA="/g260/ccc/data-from-kaust/ERA5_grib2/ERA5" %}
 {% set GLORYS_DATA="/g260/ccc/data-from-kaust/SKRIPS_DATA/AP8km4km/GLORYS_bnd" %}
 {% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
-{% set UPP_DIR = SKRIPS_DIR ~ "/external/UPPV4.0.1" %}
+#{% set UPP_DIR = SKRIPS_DIR ~ "/external/UPPV4.0.1" %}
+{% set UPP_DIR = "/g/apps/local/components/upp/4.0.1/el8_intel2021.2" %}
 
 {% set GEO_EM_FILE = "/g/home/pgopinathan/SKRIP_Grids/AP/4km/8km/geo_em.d01_mod.nc" %}
 {% set BATHY_FILE = "/g/home/pgopinathan/SKRIP_Grids/AP/4km/bathymetry.bin" %}
@@ -61,9 +63,9 @@
             skrips => upp => move_outputs
             move_outputs & move_restarts => scrap_rundir
         """
-        {{ POSTCYCLE }} = """
-            @wait => post_proc
-        """
+#        {{ POSTCYCLE }} = """
+#            @wait => post_proc
+#        """
 
 [runtime]
     [[root]]
@@ -124,7 +126,7 @@
             envsubst < $etcdir/namelist.wps > namelist.wps
             envsubst < $etcdir/namelist.input_40levs > namelist.input
             ln -sf {{ UNGRIB_DIR }} .
-            ln -sf $etcdir/Vtable .
+            cp -f $etcdir/Vtable .
             ln -sf {{ METGRID_DIR }} .
             ln -sf {{ GEO_EM_FILE }} geo_em.d01.nc
 
@@ -158,8 +160,8 @@
             nIter=$(echo "$startTimeNext/$deltaT" | bc)
             nIter=$(printf "%010d\n" $nIter)
             
-            rsync -a  ../skrips/wrfrst_* $RESTART_DIR/
-            rsync -a ../skrips/pickup.$nIter.* $RESTART_DIR/
+            rsync -a  ./wrfrst_* $RESTART_DIR/
+            rsync -a ./pickup.$nIter.* $RESTART_DIR/
         """
 
     [[link_restarts]]
@@ -266,51 +268,46 @@
 
     [[upp]]
       script = """
-       current_date=${CYLC_TASK_CYCLE_POINT}
-       
+       ln -fs ${txtCntrlFile} postxconfig-NT.txt
+       ln -fs {{ UPP_DIR }}/parm/post_avblflds.xml post_avblflds.xml
+       ln -fs {{ UPP_DIR }}/src/lib/g2tmpl/params_grib2_tbl_new params_grib2_tbl_new
+       ln -fs {{ UPP_DIR }}/parm/nam_micro_lookup.dat .
+       ln -fs {{ UPP_DIR }}/parm/hires_micro_lookup.dat .
+
+       ln -fs $CRTMDIR/EmisCoeff/IR_Water/Big_Endian/* .
+
+       ln -fs $CRTMDIR/EmisCoeff/IR_Land/SEcategory/Big_Endian/* .
+
+       ln -fs $CRTMDIR/AerosolCoeff/Big_Endian/AerosolCoeff.bin     ./
+       ln -fs $CRTMDIR/CloudCoeff/Big_Endian/CloudCoeff.bin         ./
+
+       ln -fs $CRTMDIR/SpcCoeff/Big_Endian/* .
+       ln -fs $CRTMDIR/TauCoeff/ODPS/Big_Endian/* .
+       source {{ ENV_FILE }}
+       module load upp/4.0.1/intel2021.2
        modelDataPath=$(pwd)
+       current_date=${CYLC_TASK_CYCLE_POINT}
        while [[ $current_date < $NEXT_CYCLE_POINT ]]; do
-            dateStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
-            inFile=${modelDataPath}/wrfout_d01_$dateStamp
+            export dateStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
+            export inFile=${modelDataPath}/wrfout_d01_$dateStamp
             oFile=$modelDataPath/wrfprs_d01_${dateStamp}.grb2
 
             # Check if that file exists
-            if [[ ! -e ${inFileName} ]]; then
-              echo "ERROR: Can't find 'inFileName': ${inFileName}. Directory or file does not exist.  Exiting..."
+            if [[ ! -e ${inFile} ]]; then
+              echo "ERROR: Can't find ${inFile}. Directory or file does not exist.  Exiting..."
               echo "ERROR: Check if 'modelDataPath': ${modelDataPath} exists."
               exit 1
             fi
-            uppdir="upp/$dateStamp"
-            mkdir -p $uppdir && cd $uppdir
-            ln -fs ${txtCntrlFile} postxconfig-NT.txt
-            ln -fs {{ UPP_DIR }}/parm/post_avblflds.xml post_avblflds.xml
-            ln -fs {{ UPP_DIR }}/src/lib/g2tmpl/params_grib2_tbl_new params_grib2_tbl_new
-            ln -fs {{ UPP_DIR }}/parm/nam_micro_lookup.dat .
-            ln -fs {{ UPP_DIR }}/parm/hires_micro_lookup.dat .
-
-            ln -fs $CRTMDIR/EmisCoeff/IR_Water/Big_Endian/* .
-
-            ln -fs $CRTMDIR/EmisCoeff/IR_Land/SEcategory/Big_Endian/* .
-
-            ln -fs $CRTMDIR/AerosolCoeff/Big_Endian/AerosolCoeff.bin     ./
-            ln -fs $CRTMDIR/CloudCoeff/Big_Endian/CloudCoeff.bin         ./
-
-            ln -fs $CRTMDIR/SpcCoeff/Big_Endian/* .
-            ln -fs $CRTMDIR/TauCoeff/ODPS/Big_Endian/* .
+            #uppdir="upp/$dateStamp"
+            #mkdir -p $uppdir && cd $uppdir
     
-            cat > itag <<EOF
-            ${inFileName}
-            netcdf
-            grib2
-            $dateStamp
-            NCAR
-            EOF
-            workdir=$(pwd)
-            cd -
-            echo "cd $workdir && {{ UPP_DIR }}/bin/unipost.exe && mv WRFPRS*.${tmmark} ../../$oFile" >> upp_job_list
-            current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmOutFreqMins }})M
+            envsubst < $etcdir/itag > itag
+            #workdir=$(pwd)
+            #cd -
+            srun -n {{ cpuPerNode }} {{ UPP_DIR }}/bin/unipost.exe 
+            mv WRFPRS*.${tmmark} $oFile
+            current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmOutFreqMins }}M)
        done
-        {{ PARALLEL }} -n {{ cpuPerNode }} -a upp_job_list
       """
       platform = cluster
       [[[environment]]]
@@ -322,6 +319,6 @@
 
       [[[directives]]]
          --nodes = 1
-         --ntasks = 1
+         --ntasks = {{ cpuPerNode }}
 
 
