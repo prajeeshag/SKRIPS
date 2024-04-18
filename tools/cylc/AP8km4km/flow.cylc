@@ -5,38 +5,8 @@
 # NOTE:
 #   MAINCYCLE can't be less than P1D
 
-{% set MAINCYCLE="P30D" %}
-{% set POSTCYCLE="P1M" %}
-{% set cpuOCN=238 %}
-{% set cpuATM=1024 %}
-{% set nUPPjobs=4 %}
-{% set nNodes=7 %}
-{% set wpsInputSec=21600 %}
-{% set cpuPerNode=192 %}
-{% set atmOutFreqMins=180 %} # WRF output 3 hourly
-{% set atmFileFreqMins=720 %} # WRF output 3 hourly
-{% set ocnOutFreqSecs=21600 %} # 6 hourly
-{% set atmDT=45 %}
-{% set ocnDT=60 %}
-{% set cplDT=180 %}
-{% set ACCOUNT="k10035" %}
-{% set nTimesInWRFout="4"}
-
-
-{% set SKRIPS_DIR = "/scratch/project/k10035/athippp/models/SKRIPS" %}
-{% set PYTHON="/scratch/project/k10035/athippp/miniforge3/bin/python" %}
-{% set PARALLEL="/g/home/pgopinathan/miniforge3/bin/parallel" %}
-{% set ISODATETIME="/scratch/project/k10035/athippp/.local/bin/isodatetime" %}
-{% set POST_PATH="/scratch/athippp/POST_PATH" %}
-{% set ARCHIVE_PATH="/scratch/project/k10035/athippp/ARCHIVE" %}
-{% set ERA_DATA="/scratch/project/k10035/athippp/DATA/ERA5" %}
-{% set GLORYS_DATA="/scratch/project/k10035/athippp/DATA/GLORYS_bnd" %}
 {% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
 {% set UPP_DIR = SKRIPS_DIR ~ "/external/UPPV4.0.1" %}
-
-{% set GEO_EM_FILE = "/scratch/project/k10035/athippp/SKRIP_Grids/AP/4km/8km/geo_em.d01_mod.nc" %}
-{% set BATHY_FILE = "/scratch/project/k10035/athippp/SKRIP_Grids/AP/4km/bathymetry.bin" %}
-{% set MITGRID_FILE = "/scratch/project/k10035/athippp/SKRIP_Grids/AP/4km/tile001.mitgrid" %}
 
 {% set SKRIPS_EXE = SKRIPS_DIR ~ "/build/AP4km/238/main/skrips.exe" %}
 {% set REAL_EXE = SKRIPS_DIR ~ "/external/WRF/main/real.exe" %}
@@ -113,7 +83,7 @@
         RESTART_DIR={{ ARCHIVE_PATH }}/RESTART/$CYLC_WORKFLOW_NAME
 
         # WRF Physics options
-        cu_physics=1, !Kain-Fritsch (new Eta) scheme 
+        cu_physics=1
         #cu_physics=4, !Scale aware SAS scheme 
         #cu_physics=0, !No convection scheme 
         interval_seconds={{ wpsInputSec }}
@@ -123,7 +93,9 @@
         cpuATM={{ cpuATM }}
 
         [[[directives]]]
+          {% if SITE != "ncm" %}
           --account = {{ ACCOUNT }}
+          {% endif %}
 
     [[wps_real]]
         script = """
@@ -150,7 +122,7 @@
 
             srun -n {{ cpuPerNode }} {{ REAL_EXE }} 
         """
-        platform = shaheen3
+        platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = 1
             --ntasks = {{ cpuPerNode }}
@@ -230,7 +202,7 @@
         script = """
           $PYTHON mitgcm2nc4.py
         """
-        platform=shaheen3
+        platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = 1
             --ntasks=1
@@ -265,7 +237,7 @@
             export FI_CXI_RX_MATCH_MODE=hybrid
             srun -n {{ cpuTotal }} --hint=nomultithread {{ SKRIPS_EXE }}
         """
-        platform = shaheen3
+        platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = {{ nNodes }}
             --ntasks = {{ cpuTotal }}
@@ -316,7 +288,7 @@
             current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
        done
       """
-      platform = shaheen3
+        platform={{ PLATFORM }}
       [[[environment]]]
         txtCntrlFile=$CYLC_WORKFLOW_RUN_DIR/etc/postxconfig-NT-WRFPRS.txt # grib2
         tmmark=tm00
