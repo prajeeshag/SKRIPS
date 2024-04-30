@@ -5,6 +5,18 @@
 # NOTE:
 #   MAINCYCLE can't be less than P1D
 
+{% set MAINCYCLE="P30D" %}
+{% set POSTCYCLE="P1M" %}
+{% set wpsInputSec=21600 %}
+{% set atmOutFreqMins=180 %}
+{% set atmFileFreqMins=720 %}
+{% set ocnOutFreqSecs=21600 %}
+{% set atmDT=45 %}
+{% set ocnDT=60 %}
+{% set cplDT=180 %}
+{% set nTimesInWRFout=4 %}
+{% set VARLIST2D = "LU_INDEX,VAR_SSO,MU,MUB,NEST_POS,Q2,T2,TH2,PSFC,U10,V10,SHDMAX,SHDMIN,SNOALB,SEAICE,XICEM,SFROFF,UDROFF,IVGTYP,ISLTYP,VEGFRA,GRDFLX,ACGRDFLX,ACSNOM,SNOW,SNOWH,CANWAT,SSTSK,COSZEN,LAI,NUPDRAFT,MAXMF,VAR,MF_VX_INV,HGT,TSK,RAINC,RAINSH,RAINNC,SNOWNC,GRAUPELNC,HAILNC,SWDOWN,GLW,SWNORM,ACSWUPT,ACSWUPTC,ACSWDNT,ACSWDNTC,ACSWUPB,ACSWUPBC,ACSWDNB,ACSWDNBC,ACLWUPT,ACLWUPTC,ACLWDNT,ACLWDNTC,ACLWUPB,ACLWUPBC,ACLWDNB,ACLWDNBC,SWUPT,SWUPTC,SWDNT,SWDNTC,SWUPB,SWUPBC,SWDNB,SWDNBC,LWUPT,LWUPTC,LWDNT,LWDNTC,LWUPB,LWUPBC,LWDNB,LWDNBC,OLR,ALBEDO,CLAT,ALBBCK,EMISS,NOAHRES,TMN,UST,PBLH,HFX,QFX,LH,ACHFX,ACLHF,SNOWC,SR,PCB,PC,LANDMASK,LAKEMASK,SST,SST_INPUT,ZS,DZS,TSLB,SMOIS,SH2O,SMCREL" %}
+
 {% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
 {% set UPP_DIR = SKRIPS_DIR ~ "/external/UPPV4.0.1" %}
 
@@ -32,12 +44,15 @@
             wps_real & move_restarts[-{{ MAINCYCLE }}] => link_restarts
             link_restarts => skrips
             skrips => move_restarts
-            skrips => upp => move_outputs
-            move_outputs & move_restarts => scrap_rundir
+            skrips => move_outputs
+            move_outputs & move_restarts => trigger_post_proc 
+            trigger_post_proc => scrap_rundir
         """
-#        {{ POSTCYCLE }} = """
-#            @wait => post_proc
-#        """
+        {{ POSTCYCLE }} = """
+            @wait => post_proc
+            post_proc => mitgcm2nc
+            post_proc => upp
+        """
 
 [runtime]
     [[root]]
@@ -81,6 +96,7 @@
 
         OUTPUT_DIR={{ POST_PATH }}/$CYLC_WORKFLOW_NAME
         RESTART_DIR={{ ARCHIVE_PATH }}/RESTART/$CYLC_WORKFLOW_NAME
+        ARCHIVE_DIR={{ ARCHIVE_PATH }}/OUTPUT/$CYLC_WORKFLOW_NAME
 
         # WRF Physics options
         cu_physics=1
@@ -166,42 +182,38 @@
         script = """
             echo "Move Outputs"
             mkdir -p $OUTPUT_DIR/ATM
-            mv wrfout_* wrfprs_* $OUTPUT_DIR/ATM/
+            mv wrfout_* $OUTPUT_DIR/ATM/
 
             mkdir -p $OUTPUT_DIR/OCN
             mv *.data *.meta  $OUTPUT_DIR/OCN/
         """
 
-    [[prepare_mitgcm2nc4]]
+    [[post_proc]]
         script = """
-          mkdir -p $ARCHIVE_PATH/AUX/
-          # Copy all grid data, this is not written in a restart run
-          find -maxdepth 1 -name "??.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #2
-          find -maxdepth 1 -name "???.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #3
-          find -maxdepth 1 -name "?????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #5
-          find -maxdepth 1 -name "??????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #6
-          find -maxdepth 1 -name "???????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #7
-          find -maxdepth 1 -name "????????.??ta" -exec cp -t $ARCHIVE_PATH/AUX/ {} + #8
-
-          # Now remove the grid files
-          rm -f ??.??ta #2
-          rm -f ???.??ta #3
-          rm -f ?????.??ta #5
-          rm -f ??????.??ta #6
-          rm -f ???????.??ta #7
-          rm -f ????????.??ta #8
-
-          #link it from archive path
-          ln -s $ARCHIVE_PATH/AUX/??.??ta . #2
-          ln -s $ARCHIVE_PATH/AUX/???.??ta . #3
-          ln -s $ARCHIVE_PATH/AUX/?????.??ta . #5
-          ln -s $ARCHIVE_PATH/AUX/??????.??ta . #6
+            echo "Starting post processing for month $start_month/$start_year"
         """
 
-    [[mitgcm2nc4]]
+    [[mitgcm2nc]]
         script = """
-          $PYTHON mitgcm2nc4.py
+          cd $OUTPUT_DIR/OCN
+          {{ PYTHON }} $etcdir/mitgcm2nc.py $ref_date {{ ocnDT }} $start_year $start_month \
+          $OUTPUT_DIR/OCN $OUTPUT_DIR/OCN 
         """
+        platform={{ PLATFORM }}
+        [[[directives]]]
+            --nodes = 1
+            --ntasks=1
+            --time=12:00:00
+    
+    [[splitVar]]
+      script = """
+       modelDataPath=$OUTPUT_DIR/ATM
+       YY=$start_year 
+       MM=$start_month
+       mkdir -p $OUTPUT_DIR/ATM/$YY/$MM
+       cd $OUTPUT_DIR/ATM/$YY/$MM
+       {{ CDO }} -splitvar -mergetime -apply,-seltimestep,1/4 [ -apply,-selvar,{{ VARLIST2D }} [ $modelDataPath/wrfout_d01_${YY}-${MM}-* ] ] WRF_
+       """
         platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = 1
@@ -245,6 +257,10 @@
 
     [[upp]]
       script = """
+       modelDataPath=$OUTPUT_DIR/ATM
+       mkdir -p $OUTPUT_DIR/ATM/$start_year/$start_month
+       cd $OUTPUT_DIR/ATM/$start_year/$start_month
+
        ln -fs ${txtCntrlFile} postxconfig-NT.txt
        ln -fs {{ UPP_DIR }}/parm/post_avblflds.xml post_avblflds.xml
        ln -fs {{ UPP_DIR }}/src/lib/g2tmpl/params_grib2_tbl_new params_grib2_tbl_new
@@ -263,11 +279,10 @@
 
        source {{ ENV_FILE }}
        
-       modelDataPath=$(pwd)
        current_date=${CYLC_TASK_CYCLE_POINT}
        while [[ $current_date < $NEXT_CYCLE_POINT ]]; do
             export dStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
-            export inFile=${modelDataPath}/wrfout_d01_$dStamp
+            export inFile=$modelDataPath/wrfout_d01_$dStamp
             # Check if that file exists
             if [[ ! -e ${inFile} ]]; then
               echo "ERROR: Can't find ${inFile}. Directory or file does not exist.  Exiting..."
@@ -278,7 +293,7 @@
             idate=$current_date
             for i in {1..4}; do 
               export dateStamp=$({{ ISODATETIME }} ${idate} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
-              oFile=$modelDataPath/wrfprs_d01_${dStamp}.grb2
+              oFile=wrfprs_d01_${dateStamp}.grb2
 
               envsubst < $etcdir/itag > itag
               srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe 
@@ -287,8 +302,10 @@
             done
             current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
        done
+       grib_copy wrfprs_d01.*.grb2 'WRFPRS_[shortName].grb'
+       rm -f wrfprs_d01.*.grb2
       """
-        platform={{ PLATFORM }}
+      platform={{ PLATFORM }}
       [[[environment]]]
         txtCntrlFile=$CYLC_WORKFLOW_RUN_DIR/etc/postxconfig-NT-WRFPRS.txt # grib2
         tmmark=tm00
@@ -300,4 +317,17 @@
          --nodes = 1
          --ntasks = {{ cpuPerNode }}
 
-
+  [[trigger_post_proc]]
+    script = """
+      endDate=$NEXT_CYCLE_POINT
+      [[ $endDate > ${CYLC_WORKFLOW_FINAL_CYCLE_POINT} ]] && endDate=${CYLC_WORKFLOW_FINAL_CYCLE_POINT}
+      currentDate=${CYLC_TASK_CYCLE_POINT}
+      endDate=${endDate:0:6}01T0000
+      while [[ "$currentDate" < "$endDate" ]]; do
+        bdate=${currentDate:0:6}01T0000
+        echo "b_date: $bdate"
+        echo cylc trigger $CYLC_WORKFLOW_NAME//${bdate}/post_proc
+        cylc trigger $CYLC_WORKFLOW_NAME//${bdate}/post_proc
+        currentDate=$(isodatetime "$currentDate" --offset1={{ POSTCYCLE }})
+      done
+    """

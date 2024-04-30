@@ -23,6 +23,7 @@ def write_to_nc(varName):
         ref_date=ref_date,
         prefix=[varName,],
     )
+
     timeStamp1 = ds.time[0].dt.strftime("%Y%m%d%H%M%S").item()
     timeStamp2 = ds.time[-1].dt.strftime("%Y%m%d%H%M%S").item()
     fname_suffix = f'{timeStamp1}-{timeStamp2}.nc'
