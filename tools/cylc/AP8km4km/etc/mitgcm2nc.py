@@ -42,9 +42,9 @@ def write_to_nc(varName, refDate, deltaT, year, month, out_dir, gridpath, delete
 
     # Path to the mitgcm run directory where all
     # *.data and *.meta files are present
-    complevel = 0  # compression level
-    shuffle = False
-    zlib = False
+    complevel = 2  # compression level
+    shuffle = True
+    zlib = True
 
     matching_files = glob.glob(f'{mon_dir}/*.data')
     if not matching_files:

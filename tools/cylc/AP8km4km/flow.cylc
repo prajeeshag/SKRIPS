@@ -52,6 +52,7 @@
             @wait => post_proc
             post_proc => mitgcm2nc
             post_proc => upp
+            post_proc => splitVar
         """
 
 [runtime]
@@ -69,6 +70,9 @@
         etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
 
         NEXT_CYCLE_POINT=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} --offset1={{ MAINCYCLE }})
+
+        NEXT_CYCLE_POINT_POST=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} --offset1={{ POSTCYCLE }})
+
         RUN_DURATION_HOURS=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total H)
         RUN_DURATION_MINS=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total M)
         RUN_DURATION_SECS=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} ${NEXT_CYCLE_POINT} --as-total S)
@@ -280,7 +284,7 @@
        source {{ ENV_FILE }}
        
        current_date=${CYLC_TASK_CYCLE_POINT}
-       while [[ $current_date < $NEXT_CYCLE_POINT ]]; do
+       while [[ $current_date < $NEXT_CYCLE_POINT_POST ]]; do
             export dStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
             export inFile=$modelDataPath/wrfout_d01_$dStamp
             # Check if that file exists
@@ -302,8 +306,8 @@
             done
             current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
        done
-       grib_copy wrfprs_d01.*.grb2 'WRFPRS_[shortName].grb'
-       rm -f wrfprs_d01.*.grb2
+       grib_copy wrfprs_d01_*.grb2 'WRFPRS_[shortName].grb'
+       rm -f wrfprs_d01_*.grb2
       """
       platform={{ PLATFORM }}
       [[[environment]]]
