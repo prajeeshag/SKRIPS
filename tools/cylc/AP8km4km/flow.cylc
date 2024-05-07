@@ -36,6 +36,7 @@
 [scheduling]
     initial cycle point = 2000-01-01
     final cycle point = 2021-01-01
+    runahead limit = P20
     [[xtriggers]]
         wait = echo('Waiting for trigger')
     [[graph]]
@@ -43,9 +44,8 @@
             skrips[-{{ MAINCYCLE }}]:submitted => wps_real
             wps_real & move_restarts[-{{ MAINCYCLE }}] => link_restarts
             link_restarts => skrips
-            skrips => move_restarts
-            skrips => move_outputs
-            move_outputs & move_restarts => trigger_post_proc 
+            skrips => move_restarts => move_outputs
+            move_outputs => trigger_post_proc 
             trigger_post_proc => scrap_rundir
         """
         {{ POSTCYCLE }} = """
@@ -158,7 +158,9 @@
             nIter=$(printf "%010d\n" $nIter)
             
             rsync -a  ./wrfrst_* $RESTART_DIR/
-            rsync -a ./pickup.$nIter.* $RESTART_DIR/
+            rsync -a ./pickup.$nIter.data ./pickup.$nIter.meta $RESTART_DIR/
+            rm ./wrfrst_*
+            rm ./pickup.$nIter.*
         """
 
     [[link_restarts]]
@@ -201,7 +203,7 @@
         script = """
           cd $OUTPUT_DIR/OCN
           {{ PYTHON }} $etcdir/mitgcm2nc.py $ref_date {{ ocnDT }} $start_year $start_month \
-          $OUTPUT_DIR/OCN $OUTPUT_DIR/OCN 
+          $OUTPUT_DIR/OCN $OUTPUT_DIR/OCN --delete
         """
         platform={{ PLATFORM }}
         [[[directives]]]
