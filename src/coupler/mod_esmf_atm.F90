@@ -253,6 +253,7 @@ contains
     integer, intent(out) :: rc
 
     type(ESMF_Clock)     :: clock
+    type(ESMF_Clock)     :: driverClock
     type(ESMF_State)     :: importState, exportState
 
     integer :: i, j, maxdiv, runid 
@@ -264,8 +265,11 @@ contains
     type(ESMF_VM) :: vm
     type(ESMF_Time) :: nextTime
     type(ESMF_Time) :: currTime
+    type(ESMF_Time) :: stopTime
     type(ESMF_TimeInterval) :: timeStep
-    type(ESMF_Clock) :: internalClock
+
+    logical :: do_last_io
+
     real(ESMF_KIND_R8) :: wTimeStart, wTimeEnd
 
     call ESMF_VMWtime(wTimeStart)
@@ -274,6 +278,7 @@ contains
 
     call NUOPC_ModelGet(&
       gcomp, modelClock=clock, &
+      driverClock=driverClock, &
       importState=importState, &
       exportState=exportState, rc=rc)
     _ERR_CHK(__FILE__,__LINE__)
@@ -282,11 +287,14 @@ contains
 
     CALL ESMF_ClockGet( clock, currTime=currTime, &
                         timeStep=timeStep, rc=rc )
+    CALL ESMF_ClockGet( driverClock, &
+                        stopTime=stopTime, rc=rc )
     nextTime = currTime + timeStep
     head_grid%start_subtime = currTime
     head_grid%stop_subtime = nextTime
-  
-    call wrf_run()
+    do_last_io = nextTime >= stopTime 
+    
+    call wrf_run(do_last_io)
 
     call ATM_Put(gcomp, rc)
 
