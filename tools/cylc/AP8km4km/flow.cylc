@@ -50,15 +50,21 @@
         """
         {{ POSTCYCLE }} = """
             @wait => post_proc
-            post_proc => mitgcm2nc
-            post_proc => upp
-            post_proc => splitVar
+            post_proc & ar_mitgcm_out[-{{ POSTCYCLE }}] => mitgcm2nc => ar_mitgcm_out
+            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => upp
+            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => splitVar
+            upp & splitVar => ar_wrf_out
         """
 
 [runtime]
     [[root]]
       work sub-directory = $CYLC_TASK_CYCLE_POINT/
       [[[environment]]]
+
+        dx=8000
+        dy=8000
+        e_we=401
+        e_sn=391
 
         # Run 1 hour extra because WRF sometimes fails to write restart files
         history_interval={{ atmOutFreqMins }}
@@ -210,7 +216,15 @@
             --nodes = 1
             --ntasks=1
             --time=12:00:00
-    
+
+     [[ar_mitgcm_out]]
+         script = """
+           cd $OUTPUT_DIR/OCN
+           mkdir -p $ARCHIVE_DIR/OCN
+           rsync -av --remove-source-files *.nc $ARCHIVE_DIR/OCN
+         """
+         platform={{ DATAMOVER }}
+
     [[splitVar]]
       script = """
        modelDataPath=$OUTPUT_DIR/ATM
@@ -225,6 +239,19 @@
             --nodes = 1
             --ntasks=1
             --time=12:00:00
+
+     [[ar_wrf_out]]
+         script = """
+           YY=$start_year 
+           MM=$start_month
+           cd $OUTPUT_DIR/ATM/$YY/$MM
+           mkdir -p $ARCHIVE_DIR/ATM/$YY/$MM
+           rsync -av --remove-source-files *.nc $ARCHIVE_DIR/ATM/$YY/$MM
+           rsync -av --remove-source-files *.grb $ARCHIVE_DIR/ATM/$YY/$MM
+           rm $OUTPUT_DIR/ATM/wrfout_d01_${YY}-${MM}-*
+         """
+         platform={{ DATAMOVER }}
+    
 
     [[scrap_rundir]]
         script = """
