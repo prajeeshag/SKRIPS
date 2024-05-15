@@ -11,9 +11,9 @@ end_day                  = $end_day,
 end_hour                 = $end_hour,  ! Adding extra one hour: due the WRF not writing restart file
 end_minute               = 00,     
 end_second               = 00,     
-interval_seconds         = 21600,             ! 6-hourly forcing data
+interval_seconds         = $interval_seconds,             ! 6-hourly forcing data
 input_from_file          = .true.,  
-history_interval         = 180,               ! minutes 
+history_interval         = $history_interval,               ! minutes 
 frames_per_outfile       = 8,      
 restart                  = $restart,
 restart_interval         = $restart_interval,             ! minutes
@@ -44,16 +44,16 @@ debug_level              = 0,
  time_step_fract_den      = 1,
  max_dom                  = 1,
  s_we                     = 1,    
- e_we                     = 801, 
+ e_we                     = $e_we, 
  s_sn                     = 1,  
- e_sn                     = 781,
+ e_sn                     = $e_sn,
  s_vert                   = 1, 
- e_vert                   = 40,      !From Raju, with specificed ETA levels below
- p_top_requested          = 5000,    !From Raju: 5000 pressure top (in Pa) to use in the model.
- num_metgrid_levels       = 38,      ! ECMWF reforecast pressure levels
- num_metgrid_soil_levels  = 4,       !from Raju: 4
- dx                       = 4000.,
- dy                       = 4000., 
+ e_vert                   = 40,  
+ p_top_requested          = 5000,
+ num_metgrid_levels       = 38,  
+ num_metgrid_soil_levels  = 4,   
+ dx                       = $dx,
+ dy                       = $dy, 
  grid_id                  = 1,       
  parent_id                = 1,       
  i_parent_start           = 1,       
@@ -83,7 +83,6 @@ debug_level              = 0,
  rdmaxalb                            = T
  rdlai2d                             = T
  ua_phys                             = T
- sf_surface_mosaic                   = 1
  swint_opt                           = 1
  /
 
@@ -129,6 +128,6 @@ debug_level              = 0,
 
 
 &namelist_quilt
-nio_tasks_per_group=8
+nio_tasks_per_group=4
 nio_groups=8
 /
