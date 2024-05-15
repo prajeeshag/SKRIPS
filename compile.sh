@@ -113,7 +113,9 @@ function __build_wps {
     for i in $CONF_REPLACE; do
         key=${i%%=>*} 
         val=${i##*=>}
-        sed -i "s/$key/$val/g" configure.wps
+        val=$(echo $val | sed 's/:/ /g')
+        echo $key is replaced with $val
+        sed -i "s/\<$key\>/$val/g" configure.wps
     done
 
     time ./compile 2>&1 | tee $SKRIPS_DIR/wps.compile.log
