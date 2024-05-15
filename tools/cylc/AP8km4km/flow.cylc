@@ -14,7 +14,8 @@
 {% set atmDT=45 %}
 {% set ocnDT=60 %}
 {% set cplDT=180 %}
-{% set VARLIST2D = "LU_INDEX,VAR_SSO,MU,MUB,NEST_POS,Q2,T2,TH2,PSFC,U10,V10,SHDMAX,SHDMIN,SNOALB,SEAICE,XICEM,SFROFF,UDROFF,IVGTYP,ISLTYP,VEGFRA,GRDFLX,ACGRDFLX,ACSNOM,SNOW,SNOWH,CANWAT,SSTSK,COSZEN,LAI,NUPDRAFT,MAXMF,VAR,MF_VX_INV,HGT,TSK,RAINC,RAINSH,RAINNC,SNOWNC,GRAUPELNC,HAILNC,SWDOWN,GLW,SWNORM,ACSWUPT,ACSWUPTC,ACSWDNT,ACSWDNTC,ACSWUPB,ACSWUPBC,ACSWDNB,ACSWDNBC,ACLWUPT,ACLWUPTC,ACLWDNT,ACLWDNTC,ACLWUPB,ACLWUPBC,ACLWDNB,ACLWDNBC,SWUPT,SWUPTC,SWDNT,SWDNTC,SWUPB,SWUPBC,SWDNB,SWDNBC,LWUPT,LWUPTC,LWDNT,LWDNTC,LWUPB,LWUPBC,LWDNB,LWDNBC,OLR,ALBEDO,CLAT,ALBBCK,EMISS,NOAHRES,TMN,UST,PBLH,HFX,QFX,LH,ACHFX,ACLHF,SNOWC,SR,PCB,PC,LANDMASK,LAKEMASK,SST,SST_INPUT,ZS,DZS,TSLB,SMOIS,SH2O,SMCREL" %}
+
+{% set VARLIST2D = "MU,MUB,Q2,T2,TH2,PSFC,U10,V10,SNOALB,SEAICE,XICEM,SFROFF,UDROFF,IVGTYP,ISLTYP,VEGFRA,GRDFLX,ACGRDFLX,ACSNOM,SNOW,SNOWH,CANWAT,SSTSK,LAI,NUPDRAFT,MAXMF,MF_VX_INV,HGT,TSK,RAINC,RAINSH,RAINNC,SNOWNC,GRAUPELNC,HAILNC,SWDOWN,GLW,SWNORM,ACSWUPT,ACSWUPTC,ACSWDNT,ACSWDNTC,ACSWUPB,ACSWUPBC,ACSWDNB,ACSWDNBC,ACLWUPT,ACLWUPTC,ACLWDNT,ACLWDNTC,ACLWUPB,ACLWUPBC,ACLWDNB,ACLWDNBC,SWUPT,SWUPTC,SWDNT,SWDNTC,SWUPB,SWUPBC,SWDNB,SWDNBC,LWUPT,LWUPTC,LWDNT,LWDNTC,LWUPB,LWUPBC,LWDNB,LWDNBC,OLR,ALBEDO,ALBBCK,EMISS,NOAHRES,TMN,UST,PBLH,HFX,QFX,LH,ACHFX,ACLHF,SNOWC,SR,PCB,PC,SST,SST_INPUT,ZS,DZS,TSLB,SMOIS,SH2O,SMCREL" %}
 
 {% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
 {% set UPP_DIR = SKRIPS_DIR ~ "/external/UPPV4.0.1" %}
@@ -66,6 +67,11 @@
         e_we=401
         e_sn=391
 
+        # WRF Physics options
+        cu_physics=1
+        #cu_physics=4, !Scale aware SAS scheme 
+        #cu_physics=0, !No convection scheme 
+
         # Run 1 hour extra because WRF sometimes fails to write restart files
         history_interval={{ atmOutFreqMins }}
         dumpFreq={{ ocnOutFreqSecs }}
@@ -108,10 +114,6 @@
         RESTART_DIR={{ ARCHIVE_PATH }}/RESTART/$CYLC_WORKFLOW_NAME
         ARCHIVE_DIR={{ ARCHIVE_PATH }}/OUTPUT/$CYLC_WORKFLOW_NAME
 
-        # WRF Physics options
-        cu_physics=1
-        #cu_physics=4, !Scale aware SAS scheme 
-        #cu_physics=0, !No convection scheme 
         interval_seconds={{ wpsInputSec }}
         chkptFreq=$RUN_DURATION_SECS
         
@@ -198,6 +200,10 @@
 
             mkdir -p $OUTPUT_DIR/OCN
             mv *.data *.meta  $OUTPUT_DIR/OCN/
+            if [ -f available_diagnostics.log ]; then
+                mkdir -p $ARCHIVE_DIR/OCN
+                cp available_diagnostics.log $ARCHIVE_DIR/OCN
+            fi
         """
 
     [[post_proc]]
@@ -208,6 +214,7 @@
     [[mitgcm2nc]]
         script = """
           cd $OUTPUT_DIR/OCN
+          ln -sf $ARCHIVE_DIR/OCN/available_diagnostics.log .
           {{ PYTHON }} $etcdir/mitgcm2nc.py $ref_date {{ ocnDT }} $start_year $start_month \
           $OUTPUT_DIR/OCN $OUTPUT_DIR/OCN --delete
         """
@@ -274,6 +281,7 @@
             envsubst < $etcdir/namelist.input_40levs > namelist.input
             envsubst < $etcdir/data > data
             envsubst < $etcdir/data.cal > data.cal
+            envsubst < $etcdir/data.diagnostics > data.diagnostics
             envsubst < $etcdir/namelist.rc > namelist.rc
 
             # Link Ocean BND and INI files

@@ -13,22 +13,9 @@
  &diagnostics_list
 # diag_mnc     = .FALSE.,
 # do not specify levels => all levels are selected
-  frequency(1) = 21600.0,
-  fields(1:16,1) = 'MXLDEPTH',
-                   'EXFhs   ',
-                   'EXFhl   ',
-                   'EXFlwnet',
-                   'EXFswnet',
-                   'EXFqnet ',
-                   'EXFuwind',
-                   'EXFvwind',
-                   'EXFwspee',
-                   'EXFatemp',
-                   'EXFaqh',
-                   'EXFpreci',
-                   'EXFevap',
-                   'EXFpress',
-  filename(1) = 'surface_fluxes',
+  frequency(1) = $dumpFreq,
+  fields(1:1,1) = 'MXLDEPTH',
+  filename(1) = 'MXLDEPTH',
  &
 
  &DIAG_STATIS_PARMS

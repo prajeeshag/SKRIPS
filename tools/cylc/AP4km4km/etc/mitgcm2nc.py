@@ -104,13 +104,14 @@ def write_to_nc_parallel(varNames, refdate, dt, year, month, outdir, gridpath, d
 def to_nc(refdate: str, dt: int, year: str, month: str, outdir: str, gridpath: str, delete: bool = False):
 
     varNames = [
-        'Convtave', 'ETAtave', 'Eta', 'Eta2tave', 'PH',
-        'PHL', 'PHL2tave', 'PHLtave', 'PhHytave', 'S',
-        'Stave', 'T', 'TTtave', 'Tdiftave', 'Ttave',
-        'U', 'UStave', 'UTtave', 'UUtave', 'UVtave',
-        'V', 'VStave', 'VTtave', 'VVtave', 'W', 'WStave',
+        'Convtave', 'ETAtave', 'Eta2tave',
+        'PHL2tave', 'PHLtave', 'PhHytave', 
+        'Stave', 'TTtave', 'Tdiftave', 'Ttave',
+        'UStave', 'UTtave', 'UUtave', 'UVtave',
+        'VStave', 'VTtave', 'VVtave', 'WStave',
         'WTtave', 'sFluxtave', 'tFluxtave', 'uFluxtave',
         'uVeltave', 'vFluxtave', 'vVeltave', 'wVeltave',
+        'MXLDEPTH',
     ]
       
     os.makedirs(outdir, exist_ok=True)
