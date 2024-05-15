@@ -9,12 +9,11 @@
 {% set POSTCYCLE="P1M" %}
 {% set wpsInputSec=21600 %}
 {% set atmOutFreqMins=180 %}
-{% set atmFileFreqMins=720 %}
+{% set atmFileFreqMins=1440 %}
 {% set ocnOutFreqSecs=21600 %}
 {% set atmDT=20 %}
 {% set ocnDT=60 %}
 {% set cplDT=60 %}
-{% set nTimesInWRFout=4 %}
 {% set VARLIST2D = "LU_INDEX,VAR_SSO,MU,MUB,NEST_POS,Q2,T2,TH2,PSFC,U10,V10,SHDMAX,SHDMIN,SNOALB,SEAICE,XICEM,SFROFF,UDROFF,IVGTYP,ISLTYP,VEGFRA,GRDFLX,ACGRDFLX,ACSNOM,SNOW,SNOWH,CANWAT,SSTSK,COSZEN,LAI,NUPDRAFT,MAXMF,VAR,MF_VX_INV,HGT,TSK,RAINC,RAINSH,RAINNC,SNOWNC,GRAUPELNC,HAILNC,SWDOWN,GLW,SWNORM,ACSWUPT,ACSWUPTC,ACSWDNT,ACSWDNTC,ACSWUPB,ACSWUPBC,ACSWDNB,ACSWDNBC,ACLWUPT,ACLWUPTC,ACLWDNT,ACLWDNTC,ACLWUPB,ACLWUPBC,ACLWDNB,ACLWDNBC,SWUPT,SWUPTC,SWDNT,SWDNTC,SWUPB,SWUPBC,SWDNB,SWDNBC,LWUPT,LWUPTC,LWDNT,LWDNTC,LWUPB,LWUPBC,LWDNB,LWDNBC,OLR,ALBEDO,CLAT,ALBBCK,EMISS,NOAHRES,TMN,UST,PBLH,HFX,QFX,LH,ACHFX,ACLHF,SNOWC,SR,PCB,PC,LANDMASK,LAKEMASK,SST,SST_INPUT,ZS,DZS,TSLB,SMOIS,SH2O,SMCREL" %}
 
 {% set WPS_DIR = SKRIPS_DIR ~ "/external/WPS" %}
@@ -32,6 +31,7 @@
 
 ##
 {% set cpuTotal=cpuOCN+cpuATM %}
+{% set nTimesInWRFout=atmFileFreqMins/atmOutFreqMins %}
 
 [scheduling]
     initial cycle point = 2000-01-01
@@ -51,8 +51,8 @@
         {{ POSTCYCLE }} = """
             @wait => post_proc
             post_proc & ar_mitgcm_out[-{{ POSTCYCLE }}] => mitgcm2nc => ar_mitgcm_out
-            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => upp 
-            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => splitVar 
+            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => upp
+            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => splitVar
             upp & splitVar => ar_wrf_out
         """
 
@@ -217,15 +217,14 @@
             --ntasks=1
             --time=12:00:00
 
-    [[ar_mitgcm_out]]
-        script = """
-          cd $OUTPUT_DIR/OCN
-          mkdir -p $ARCHIVE_DIR/OCN
-          rsync -av --remove-source-files *.nc $ARCHIVE_DIR/OCN 
-        """
-        platform={{ DATAMOVER }}
-    
-    
+     [[ar_mitgcm_out]]
+         script = """
+           cd $OUTPUT_DIR/OCN
+           mkdir -p $ARCHIVE_DIR/OCN
+           rsync -av --remove-source-files *.nc $ARCHIVE_DIR/OCN
+         """
+         platform={{ DATAMOVER }}
+
     [[splitVar]]
       script = """
        modelDataPath=$OUTPUT_DIR/ATM
@@ -233,7 +232,7 @@
        MM=$start_month
        mkdir -p $OUTPUT_DIR/ATM/$YY/$MM
        cd $OUTPUT_DIR/ATM/$YY/$MM
-       {{ CDO }} -splitvar -mergetime -apply,-seltimestep,1/4 [ -apply,-selvar,{{ VARLIST2D }} [ $modelDataPath/wrfout_d01_${YY}-${MM}-* ] ] WRF_
+       {{ CDO }} -splitvar -mergetime [ -apply,-selvar,{{ VARLIST2D }} [ $modelDataPath/wrfout_d01_${YY}-${MM}-* ] ] WRF_
        """
         platform={{ PLATFORM }}
         [[[directives]]]
@@ -241,15 +240,18 @@
             --ntasks=1
             --time=12:00:00
 
-    [[ar_wrf_out]]
-        script = """
-          cd $OUTPUT_DIR/ATM/$YY/$MM
-          mkdir -p $ARCHIVE_DIR/ATM/$YY/$MM
-          rsync -av --remove-source-files *.nc $ARCHIVE_DIR/ATM/$YY/$MM 
-          rsync -av --remove-source-files *.grb $ARCHIVE_DIR/ATM/$YY/$MM
-          rm $OUTPUT_DIR/ATM/wrfout_d01_${YY}-${MM}-*
-        """
-        platform={{ DATAMOVER }}
+     [[ar_wrf_out]]
+         script = """
+           YY=$start_year 
+           MM=$start_month
+           cd $OUTPUT_DIR/ATM/$YY/$MM
+           mkdir -p $ARCHIVE_DIR/ATM/$YY/$MM
+           rsync -av --remove-source-files *.nc $ARCHIVE_DIR/ATM/$YY/$MM
+           rsync -av --remove-source-files *.grb $ARCHIVE_DIR/ATM/$YY/$MM
+           rm $OUTPUT_DIR/ATM/wrfout_d01_${YY}-${MM}-*
+         """
+         platform={{ DATAMOVER }}
+    
 
     [[scrap_rundir]]
         script = """
@@ -322,7 +324,7 @@
             fi
             
             idate=$current_date
-            for i in {1..4}; do 
+            for i in $(seq 1 {{ nTimesInWRFout }}); do 
               export dateStamp=$({{ ISODATETIME }} ${idate} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
               oFile=wrfprs_d01_${dateStamp}.grb2
 
