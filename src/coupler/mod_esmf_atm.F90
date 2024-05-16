@@ -199,7 +199,7 @@ contains
     head_grid%stop_subtime = currTime
   
     ! run an empty step (for initialization)
-    call wrf_run();
+    ! call wrf_run();
 
   end subroutine ATM_Init2
 
