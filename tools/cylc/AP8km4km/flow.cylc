@@ -78,6 +78,9 @@
         time_step={{ atmDT }}
         deltaT={{ ocnDT }}
         CPL_TIME_STEP={{ cplDT }}
+        nproc_x={{ nproc_x|default(-1) }}
+        nproc_y={{ nproc_y|default(-1) }}
+
             
         etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
 
@@ -127,7 +130,9 @@
 
     [[wps_real]]
         script = """
-
+            
+            export nproc_x=-1
+            export nproc_y=-1
             envsubst < $etcdir/namelist.wps > namelist.wps
             envsubst < $etcdir/namelist.input_40levs > namelist.input
             ln -sf {{ UNGRIB_DIR }} .
@@ -288,7 +293,7 @@
             ln -sf {{ GLORYS_DATA }}/* .
             source {{ ENV_FILE }}
             export FI_CXI_RX_MATCH_MODE=hybrid
-            srun -n {{ cpuTotal }} --hint=nomultithread {{ SKRIPS_EXE }}
+            srun -n {{ cpuTotal }} --distribution=block:block --hint=nomultithread {{ SKRIPS_EXE }}
         """
         platform={{ PLATFORM }}
         [[[directives]]]
@@ -337,7 +342,8 @@
               oFile=wrfprs_d01_${dateStamp}.grb2
 
               envsubst < $etcdir/itag > itag
-              srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe 
+              srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe > upp.log
+              rm upp.log #because these files too large
               mv WRFPRS* $oFile
               idate=$({{ ISODATETIME }} ${idate} --offset1=PT{{ atmOutFreqMins }}M)
             done
