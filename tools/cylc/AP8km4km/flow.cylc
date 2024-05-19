@@ -9,7 +9,7 @@
 {% set POSTCYCLE="P1M" %}
 {% set wpsInputSec=21600 %}
 {% set atmOutFreqMins=180 %}
-{% set atmFileFreqMins=1440 %}
+{% set atmFileFreqMins=180 %}
 {% set ocnOutFreqSecs=21600 %}
 {% set atmDT=45 %}
 {% set ocnDT=60 %}
@@ -326,6 +326,15 @@
        source {{ ENV_FILE }}
        
        current_date=${CYLC_TASK_CYCLE_POINT}
+
+       if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
+            # do nothing
+            echo "Starting UPP from $current_date"
+       else
+          current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
+          echo "Starting UPP from $current_date"
+       fi
+
        while [[ $current_date < $NEXT_CYCLE_POINT_POST ]]; do
             export dStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
             export inFile=$modelDataPath/wrfout_d01_$dStamp
