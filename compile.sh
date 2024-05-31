@@ -97,6 +97,17 @@ function __build_jasper {
     cd $buildDir && make -j $jobs && make install
 }
 
+__conf_replace ()
+{
+    for i in $CONF_REPLACE; do
+        key=${i%%=>*} 
+        val=${i##*=>}
+        val=$(echo $val | sed 's/:/ /g')
+        echo $key is replaced with $val
+        sed -i "s/\<$key\>/$val/g" $1
+    done
+}
+
 function __build_wps {
     jobs=$1
     clean=$2
@@ -109,14 +120,7 @@ function __build_wps {
    
     printf $WPS_CONFIG_OPT 
     printf $WPS_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wps.configure.log
-
-    for i in $CONF_REPLACE; do
-        key=${i%%=>*} 
-        val=${i##*=>}
-        val=$(echo $val | sed 's/:/ /g')
-        echo $key is replaced with $val
-        sed -i "s/\<$key\>/$val/g" configure.wps
-    done
+    __conf_replace configure.wps
 
     time ./compile 2>&1 | tee $SKRIPS_DIR/wps.compile.log
 }
@@ -137,11 +141,7 @@ function __build_upp {
    
     printf $UPP_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/upp.configure.log
 
-    for i in $CONF_REPLACE; do
-        key=${i%%=>*} 
-        val=${i##*=>}
-        sed -i "s/$key/$val/g" configure.upp
-    done
+    __conf_replace configure.upp
 
     time ./compile 2>&1 | tee $SKRIPS_DIR/upp.compile.log
 }
@@ -198,12 +198,8 @@ function __build_wrf_lib {
     export NETCDF_classic=1
  
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
-    
-    wrfconfig=$SKRIPS_DIR/etc/$WRFCONFIGURE_FILE
 
-    if [ -f $wrfconfig ]; then
-      cp $wrfconfig configure.wrf
-    fi
+    __conf_replace configure.wrf
 
     sed -i 's/nproc_x .LT. 10/nproc_x .LT. 5/' share/module_check_a_mundo.F
     sed -i 's/nproc_y .LT. 10/nproc_y .LT. 5/' share/module_check_a_mundo.F
@@ -247,7 +243,7 @@ function __get_mitgcm_domain_parm {
     echo "${nP}"
 }
 
-function __build_mitgcm {
+function __build_mitgcm_lib {
     code=$1
     exe=$2
     jobs=$3
