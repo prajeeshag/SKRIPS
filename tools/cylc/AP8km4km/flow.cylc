@@ -1,5 +1,5 @@
 #!jinja2
-# Cylc Suit for running SKRIPPS AP8km4km 20 year ERA-GLORIS
+# Cylc Suit for running SKRIPS AP8km4km 20 year run using ERA5-GLORYS data
 # Author: Prajeesh
 #
 # NOTE:

@@ -11,11 +11,14 @@
 #                 file for the list of all available diag. in this particular config)
 #-----------------
  &diagnostics_list
-# diag_mnc     = .FALSE.,
-# do not specify levels => all levels are selected
-  frequency(1) = $dumpFreq,
-  fields(1:1,1) = 'MXLDEPTH',
-  filename(1) = 'MXLDEPTH',
+  frequency(1) = $ocnOutSfcfreq,
+  fields(1:4,1) = 'MXLDEPTH', 'ETAN', 'THETA', 'SALT',
+  filename(1) = 'ocn2d',
+  levels(1,1) = 1. 
+
+  frequency(2) = $ocnOutLfreq,
+  fields(1:,2) = 'THETA', 'SALT', 'UVEL', 'VVEL', 'WVEL',
+  filename(2) = 'ocn3d',
  &
 
  &DIAG_STATIS_PARMS

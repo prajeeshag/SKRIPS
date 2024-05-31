@@ -55,7 +55,7 @@
  taveFreq          = $dumpFreq,
  tauThetaClimRelax = 0.,
  tauSaltClimRelax  = 0.,
- monitorFreq       = 100.,
+ monitorFreq       = 100000.,
  forcing_In_AB     =.false.,
  &
 # Gridding parameters
