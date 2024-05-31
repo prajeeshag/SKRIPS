@@ -39,7 +39,7 @@ function __available_machines {
     done
 }
 
-function available_machines {
+function av_machines {
     __addarg "-h" "--help" "help" "optional" "" "List available machines"
     __parseargs "$@"
     __available_machines
@@ -146,7 +146,7 @@ function __build_upp {
     time ./compile 2>&1 | tee $SKRIPS_DIR/upp.compile.log
 }
 
-function build_jasper {
+function jasper {
     __addarg "-h" "--help" "help" "optional" "" "Build JASPER"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __parseargs "$@"
@@ -155,7 +155,7 @@ function build_jasper {
     __build_jasper $jobs 
 }
 
-function build_wps {
+function wps {
     __addarg "-h" "--help" "help" "optional" "" "Build WPS"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __addarg "" "--clean" "flag" "optional" "" "make clean"
@@ -165,7 +165,7 @@ function build_wps {
     __build_wps $jobs $clean
 }
 
-function build_upp {
+function upp {
     __addarg "-h" "--help" "help" "optional" "" "Build UPP"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __addarg "" "--clean" "flag" "optional" "" "make clean"
@@ -174,7 +174,7 @@ function build_upp {
     __build_upp $jobs $clean
 }
 
-function build_esmf {
+function esmf {
     __addarg "-h" "--help" "help" "optional" "" "Build the ESMF library"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __addarg "" "--clean" "flag" "optional" "" "make clean"
@@ -221,7 +221,7 @@ function __build_wrf_lib {
     head -n $((linenumber-1)) configure.wrf > configure.wrf_cpl
 }
 
-function build_wrf {
+function wrf {
     __addarg "-h" "--help" "help" "optional" "" "Build the WRF as library"
     __addarg "-j" "--jobs" "storevalue" "optional" "16" "Allow N parallel jobs at once"
     __addarg "" "--clean" "flag" "optional" "" "clean the build"
@@ -268,7 +268,7 @@ function __build_mitgcm {
     echo "$builddir"
 }
 
-function build_mitgcm_lib {
+function mitgcm {
     __addarg "-h" "--help" "help" "optional" "" "Build the MITgcm as library"
     __addarg "-c" "--code" "storevalue" "required" "" "Path to the MITgcm user code directory"
     __addarg "-e" "--exe" "storevalue" "required" "" "Name of the executable"
@@ -280,9 +280,9 @@ function build_mitgcm_lib {
     __build_mitgcm_lib $code $exe $jobs
 }
 
-function build_skrips {
+function skrips {
     __addarg "-h" "--help" "help" "optional" "" "Build the SKRIPS coupled model"
-    __addarg "-e" "--exe" "storevalue" "required" "" "Path were mitgcm build directory (output of build_mitgcm_lib command)"
+    __addarg "-e" "--exe" "storevalue" "required" "" "Path were mitgcm build directory (output of $0 mitgcm command)"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __addarg "" "--debug" "flag" "optional" "" "Add debug symbols"
 
@@ -301,5 +301,6 @@ function build_skrips {
     cp $SKRIPS_DIR/src/coupler/* .
     make -j $jobs
 }
+
 
 __koirun "$@"
