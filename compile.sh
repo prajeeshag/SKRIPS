@@ -195,6 +195,8 @@ function __build_wrf_lib {
       return 
     fi
     
+    export NETCDF_classic=1
+ 
     printf $WRF_CONFIG_OPT | ./configure 2>&1 | tee $SKRIPS_DIR/wrf.configure.log
     
     wrfconfig=$SKRIPS_DIR/etc/$WRFCONFIGURE_FILE
@@ -202,6 +204,12 @@ function __build_wrf_lib {
     if [ -f $wrfconfig ]; then
       cp $wrfconfig configure.wrf
     fi
+
+    sed -i 's/nproc_x .LT. 10/nproc_x .LT. 5/' share/module_check_a_mundo.F
+    sed -i 's/nproc_y .LT. 10/nproc_y .LT. 5/' share/module_check_a_mundo.F
+        
+    sed -i 's/# -DRSL0_ONLY/-DRSL0_ONLY/g' ./configure.wrf
+
     rm -rf external/esmf_time_f90 && ln -sf $SKRIPS_DIR/external/cesmf_time_f90 external/esmf_time_f90
 
     if [[ $debug -eq 1 ]]; then

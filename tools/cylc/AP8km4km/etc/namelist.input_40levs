@@ -14,7 +14,7 @@ end_second               = 00,
 interval_seconds         = $interval_seconds,             ! 6-hourly forcing data
 input_from_file          = .true.,  
 history_interval         = $history_interval,               ! minutes 
-frames_per_outfile       = 8,      
+frames_per_outfile       = 1,      
 restart                  = $restart,
 restart_interval         = $restart_interval,             ! minutes
 io_form_restart          = 2,                 ! split restart file
@@ -37,8 +37,8 @@ debug_level              = 0,
 /
 
 &domains
- nproc_x  = -1,
- nproc_y  = -1,
+ nproc_x  = $nproc_x,
+ nproc_y  = $nproc_y,
  time_step                = $time_step,
  time_step_fract_num      = 0,
  time_step_fract_den      = 1,

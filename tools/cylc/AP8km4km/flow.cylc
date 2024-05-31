@@ -9,7 +9,7 @@
 {% set POSTCYCLE="P1M" %}
 {% set wpsInputSec=21600 %}
 {% set atmOutFreqMins=180 %}
-{% set atmFileFreqMins=1440 %}
+{% set atmFileFreqMins=180 %}
 {% set ocnOutFreqSecs=21600 %}
 {% set atmDT=45 %}
 {% set ocnDT=60 %}
@@ -78,6 +78,9 @@
         time_step={{ atmDT }}
         deltaT={{ ocnDT }}
         CPL_TIME_STEP={{ cplDT }}
+        nproc_x={{ nproc_x|default(-1) }}
+        nproc_y={{ nproc_y|default(-1) }}
+
             
         etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
 
@@ -127,7 +130,9 @@
 
     [[wps_real]]
         script = """
-
+            
+            export nproc_x=-1
+            export nproc_y=-1
             envsubst < $etcdir/namelist.wps > namelist.wps
             envsubst < $etcdir/namelist.input_40levs > namelist.input
             ln -sf {{ UNGRIB_DIR }} .
@@ -288,7 +293,7 @@
             ln -sf {{ GLORYS_DATA }}/* .
             source {{ ENV_FILE }}
             export FI_CXI_RX_MATCH_MODE=hybrid
-            srun -n {{ cpuTotal }} --hint=nomultithread {{ SKRIPS_EXE }}
+            srun -n {{ cpuTotal }} --distribution=block:block --hint=nomultithread {{ SKRIPS_EXE }}
         """
         platform={{ PLATFORM }}
         [[[directives]]]
@@ -321,6 +326,15 @@
        source {{ ENV_FILE }}
        
        current_date=${CYLC_TASK_CYCLE_POINT}
+
+       if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
+            # do nothing
+            echo "Starting UPP from $current_date"
+       else
+          current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
+          echo "Starting UPP from $current_date"
+       fi
+
        while [[ $current_date < $NEXT_CYCLE_POINT_POST ]]; do
             export dStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
             export inFile=$modelDataPath/wrfout_d01_$dStamp
@@ -337,7 +351,8 @@
               oFile=wrfprs_d01_${dateStamp}.grb2
 
               envsubst < $etcdir/itag > itag
-              srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe 
+              srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe > upp.log
+              rm upp.log #because these files too large
               mv WRFPRS* $oFile
               idate=$({{ ISODATETIME }} ${idate} --offset1=PT{{ atmOutFreqMins }}M)
             done
