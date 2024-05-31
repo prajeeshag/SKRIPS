@@ -174,7 +174,7 @@ function build_upp {
     __build_upp $jobs $clean
 }
 
-function build_esmf_lib {
+function build_esmf {
     __addarg "-h" "--help" "help" "optional" "" "Build the ESMF library"
     __addarg "-j" "--jobs" "storevalue" "optional" "4" "Allow N parallel jobs at once"
     __addarg "" "--clean" "flag" "optional" "" "make clean"
@@ -247,7 +247,7 @@ function __get_mitgcm_domain_parm {
     echo "${nP}"
 }
 
-function __build_mitgcm_lib {
+function __build_mitgcm {
     code=$1
     exe=$2
     jobs=$3
