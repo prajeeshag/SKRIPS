@@ -11,12 +11,12 @@
 #                 file for the list of all available diag. in this particular config)
 #-----------------
  &diagnostics_list
-  frequency(1) = $ocnOutSfcfreq,
+  frequency(1) = $ocn2dFreq,
   fields(1:4,1) = 'MXLDEPTH', 'ETAN', 'THETA', 'SALT',
   filename(1) = 'ocn2d',
   levels(1,1) = 1. 
 
-  frequency(2) = $ocnOutLfreq,
+  frequency(2) = $ocn3dFreq,
   fields(1:,2) = 'THETA', 'SALT', 'UVEL', 'VVEL', 'WVEL',
   filename(2) = 'ocn3d',
  &

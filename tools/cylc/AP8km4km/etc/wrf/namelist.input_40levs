@@ -12,16 +12,21 @@ end_hour                 = $end_hour,  ! Adding extra one hour: due the WRF not 
 end_minute               = 00,     
 end_second               = 00,     
 interval_seconds         = $interval_seconds,             ! 6-hourly forcing data
-input_from_file          = .true.,  
-history_interval         = $history_interval,               ! minutes 
-frames_per_outfile       = 1,      
+input_from_file          = .true.,
+
+history_interval         = 6000000,               ! minutes 
+frames_per_outfile       = 1,
+
 restart                  = $restart,
 restart_interval         = $restart_interval,             ! minutes
-io_form_restart          = 2,                 ! split restart file
+io_form_restart          = 2,
+
 io_form_history          = 2,
+
 auxinput4_inname         = "wrflowinp_d<domain>"
 auxinput4_interval       = 720,      720,     ! 12-hourly forcing data
 io_form_auxinput4        = 2,
+
 debug_level              = 0,
 
 ! Used in old Skrips implementation
@@ -29,11 +34,17 @@ debug_level              = 0,
 !auxinput5_interval_s                = 120,
 !auxinput5_end_d                     = 60,
 !io_form_auxinput5                   = 7,
-!auxhist5_outname                    = 'wrf_esmf_output',
-!frames_per_auxhist5                 = 100000,
-!auxhist5_interval_s                 = 120,
-!auxhist5_end_d                      = 60,
-!io_form_auxhist5                    = 7,
+
+auxhist5_outname                    = 'wrf3d_d<domain>_<date>',
+frames_per_auxhist5                 = 1,
+auxhist5_interval_s                 = $wrf3dFreq,
+io_form_auxhist5                    = 2,
+
+auxhist6_outname                    = 'wrf2d_d<domain>_<date>',
+frames_per_auxhist6                 = 1,
+auxhist6_interval_s                 = $wrf2dFreq,
+io_form_auxhist6                    = 2,
+
 /
 
 &domains

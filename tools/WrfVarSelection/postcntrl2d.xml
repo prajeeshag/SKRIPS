@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<postxml>
+<!--  Lin Gan:  20150416 validated -->
+    <paramset>
+    <datset>WRFSFC</datset>
+    <grid_num>4</grid_num>
+    <sub_center>ncep_nco</sub_center>
+    <version_no>v2003</version_no>
+    <local_table_vers_no>local_tab_yes1</local_table_vers_no>
+    <sigreftime>fcst</sigreftime>
+    <prod_status>oper</prod_status>
+    <data_type>fcst</data_type>
+    <gen_proc_type>fcst</gen_proc_type>
+    <time_range_unit>hour</time_range_unit>
+    <orig_center>nws_ncep</orig_center>
+    <gen_proc>wrf_em_ncar_arwrf</gen_proc>
+    <packing_method>complex_packing_spatial_diff</packing_method>
+    <order_of_sptdiff>2nd_ord_sptdiff</order_of_sptdiff>
+    <field_datatype>fltng_pnt</field_datatype>
+    <comprs_type>lossless</comprs_type>
+
+       <param>
+       <shortname>TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_2m</shortname>
+       <pname>TMP</pname>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>SPFH_ON_SPEC_HGT_LVL_ABOVE_GRND_2m</shortname>
+       <pname>SPFH</pname>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>RH_ON_SPEC_HGT_LVL_ABOVE_GRND_2m</shortname>
+       <pname>RH</pname>
+       <scale>3.0</scale>
+       </param>
+
+      <param>
+       <shortname>HGT_ON_SURFACE</shortname>
+       <pname>HGT</pname>
+       <scale>6.0</scale>
+      </param>
+
+       <param>
+       <shortname>UGRD_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
+       <pname>UGRD</pname>
+       <level>10.</level>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>VGRD_ON_SPEC_HGT_LVL_ABOVE_GRND_10m</shortname>
+       <pname>VGRD</pname>
+       <level>10.</level>
+       <scale>4.0</scale>
+       </param>
+
+       <param>
+       <shortname>PRES_ON_SURFACE</shortname>
+       <pname>PRES</pname>
+       <scale>6.0</scale>
+       </param>
+
+    <param>
+       <shortname>TMP_ON_SURFACE</shortname>
+       <pname>TMP</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>WEASD_ON_SURFACE</shortname>
+       <pname>WEASD</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>LAND_ON_SURFACE</shortname>
+       <pname>LAND</pname>
+       <scale>1.0</scale>
+    </param>
+
+    <param>
+      <shortname>ACM_ACPCP_ON_SURFACE</shortname>
+      <pname>ACPCP</pname>
+      <scale>4.0</scale>
+    </param>
+
+    <param>
+      <shortname>ACM_APCP_ON_SURFACE</shortname>
+      <pname>APCP</pname>
+      <scale>4.0</scale>
+    </param>
+
+    <param>
+      <shortname>INST_ULWRF_ON_TOP_OF_ATMOS</shortname>
+      <pname>ULWRF</pname>
+      <scale>4.0</scale>
+    </param>
+
+    <param>
+      <shortname>VEG_ON_SURFACE</shortname>
+      <pname>VEG</pname>
+      <scale>3.0</scale>
+    </param>
+
+    <param>
+    <shortname>LAI_ON_SURFACE</shortname>
+    <pname>LAI</pname>
+    <scale>-3.0</scale>
+    </param>
+
+    <param>
+       <shortname>ACM_SSRUN_ON_SURFACE</shortname>
+       <pname>SSRUN</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>ACM_BGRUN_ON_SURFACE</shortname>
+       <pname>BGRUN</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>INST_GFLUX_ON_SURFACE</shortname>
+       <pname>GFLUX</pname>
+       <scale>3.0</scale>
+    </param>
+    <param>
+       <shortname>INST_ULWRF_ON_SURFACE</shortname>
+       <pname>ULWRF</pname>
+       <scale>4.0</scale>
+    </param>
+    <param>
+       <shortname>INST_USWRF_ON_SURFACE</shortname>
+       <pname>USWRF</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>INST_DSWRF_ON_SURFACE</shortname>
+       <pname>DSWRF</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>INST_DLWRF_ON_SURFACE</shortname>
+       <pname>DLWRF</pname>
+       <scale>4.0</scale>
+    </param>
+
+    <param>
+       <shortname>INST_LHTFL_ON_SURFACE</shortname>
+       <pname>LHTFL</pname>
+       <scale>4.0</scale>
+    </param>    
+
+    <param>
+       <shortname>INST_SHTFL_ON_SURFACE</shortname>
+       <pname>SHTFL</pname>
+       <scale>4.0</scale>
+    </param>     
+
+   </paramset>
+   </postxml>
