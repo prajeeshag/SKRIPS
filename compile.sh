@@ -201,9 +201,6 @@ function __build_wrf_lib {
 
     __conf_replace configure.wrf
 
-    sed -i 's/nproc_x .LT. 10/nproc_x .LT. 5/' share/module_check_a_mundo.F
-    sed -i 's/nproc_y .LT. 10/nproc_y .LT. 5/' share/module_check_a_mundo.F
-        
     sed -i 's/# -DRSL0_ONLY/-DRSL0_ONLY/g' ./configure.wrf
 
     rm -rf external/esmf_time_f90 && ln -sf $SKRIPS_DIR/external/cesmf_time_f90 external/esmf_time_f90

@@ -25,9 +25,9 @@ io_form_restart          = 2,
 
 io_form_history          = 2,
 
-!auxinput4_inname         = "wrflowinp_d<domain>"
-!auxinput4_interval       = 720,      720,     ! 12-hourly forcing data
-!io_form_auxinput4        = 2,
+auxinput4_inname         = "wrflowinp_d<domain>"
+auxinput4_interval       = 1000000000,      
+io_form_auxinput4        = 2,
 
 debug_level              = 0,
 
@@ -88,7 +88,7 @@ io_form_auxhist6                    = 2,
  icloud                              = 1,
  num_land_cat                        = 21,
  num_soil_layers                     = 4,
- sst_update                          = 0,
+ sst_update                          = 1,
  usemonalb                           = T
  rdmaxalb                            = T
  rdlai2d                             = T
@@ -101,8 +101,7 @@ io_form_auxhist6                    = 2,
  xwavenum                            = 9
  ywavenum                            = 9
  gfdda_inname                        = "wrffdda_d<domain>",
- !gfdda_interval_m                    = 360,   360,   360,
- gfdda_interval_s                    = $interval_seconds,   360,   360,
+ gfdda_interval_m                    = $interval_minutes,   360,   360,
  gfdda_end_h                         = 40000,    24,    24,
  if_no_pbl_nudging_uv                = 1,     0,     1,
  if_no_pbl_nudging_t                 = 1,     0,     1,

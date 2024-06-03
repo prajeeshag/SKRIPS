@@ -5,7 +5,7 @@
 # NOTE:
 #   MAINCYCLE can't be less than P1D
 
-{% set MAINCYCLE="P30D" %}
+{% set MAINCYCLE="P3D" %}
 {% set POSTCYCLE="P1M" %}
 {% set wpsInputSec=21600 %}
 
@@ -32,54 +32,49 @@
 
 ##
 {% set cpuTotal=cpuOCN+cpuATM %}
-{% set nTimesInWRFout=atmFileFreqMins/atmOutFreqMins %}
+{% set nTimesInWRFout=1 %}
 
 [scheduling]
     initial cycle point = 2000-01-01
-    final cycle point = 2021-01-01
+    final cycle point = 2000-02-01
     runahead limit = P20
     [[xtriggers]]
         wait = echo('Waiting for trigger')
     [[graph]]
         {{ MAINCYCLE }} = """
-            skrips[-{{ MAINCYCLE }}]:submitted => wps_real
-            wps_real & move_restarts[-{{ MAINCYCLE }}] => link_restarts
+            skrips[-{{ MAINCYCLE }}]:submitted => ungrib => metgrid => real 
+            real & move_restarts[-{{ MAINCYCLE }}] => link_restarts
             link_restarts => skrips
             skrips => move_restarts => move_outputs
             move_outputs => trigger_post_proc 
             trigger_post_proc => scrap_rundir
         """
-        {{ POSTCYCLE }} = """
-            @wait => post_proc
-            post_proc & ar_mitgcm_out[-{{ POSTCYCLE }}] => mitgcm2nc => ar_mitgcm_out
-            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => upp
-            post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => splitVar
-            upp & splitVar => ar_wrf_out
-        """
+        #{{ POSTCYCLE }} = """
+        #    @wait => post_proc
+        #    post_proc & ar_mitgcm_out[-{{ POSTCYCLE }}] => mitgcm2nc => ar_mitgcm_out
+        #    post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => upp
+        #    post_proc & ar_wrf_out[-{{ POSTCYCLE }}] => splitVar
+        #    upp & splitVar => ar_wrf_out
+        #"""
 
 [runtime]
     [[root]]
       work sub-directory = $CYLC_TASK_CYCLE_POINT/
       [[[environment]]]
 
-        dx=8000
-        dy=8000
-        e_we=401
-        e_sn=391
-
-        # WRF Physics options
-        cu_physics=1
-        #cu_physics=4, !Scale aware SAS scheme 
-        #cu_physics=0, !No convection scheme 
-
         # Run 1 hour extra because WRF sometimes fails to write restart files
-        history_interval={{ atmOutFreqMins }}
-        dumpFreq={{ ocnOutFreqSecs }}
+        history_interval=1000000000
         time_step={{ atmDT }}
         deltaT={{ ocnDT }}
         CPL_TIME_STEP={{ cplDT }}
         nproc_x={{ nproc_x|default(-1) }}
         nproc_y={{ nproc_y|default(-1) }}
+        wrf2dFreq={{ wrf2dFreq }}
+        wrf3dFreq={{ wrf3dFreq }}
+        ocn2dFreq={{ ocn2dFreq }}
+        ocn3dFreq={{ ocn3dFreq }}
+        nio_tasks_per_group={{ nio_tasks_per_group }}
+        nio_groups={{ nio_groups }}
 
             
         etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
@@ -118,6 +113,7 @@
         ARCHIVE_DIR={{ ARCHIVE_PATH }}/OUTPUT/$CYLC_WORKFLOW_NAME
 
         interval_seconds={{ wpsInputSec }}
+        interval_minutes={{ wpsInputSec / 60 }}
         chkptFreq=$RUN_DURATION_SECS
         
         cpuOCN={{ cpuOCN }}
@@ -128,17 +124,13 @@
           --account = {{ ACCOUNT }}
           {% endif %}
 
-    [[wps_real]]
+    [[ungrib]]
         script = """
             
-            export nproc_x=-1
-            export nproc_y=-1
-            envsubst < $etcdir/namelist.wps > namelist.wps
-            envsubst < $etcdir/namelist.input_40levs > namelist.input
+            envsubst < $etcdir/wps/namelist.wps > namelist.wps
+
             ln -sf {{ UNGRIB_DIR }} .
-            cp -f $etcdir/Vtable .
-            ln -sf {{ METGRID_DIR }} .
-            ln -sf {{ GEO_EM_FILE }} geo_em.d01.nc
+            cp -f $etcdir/wps/Vtable .
 
             if [[ $start_year != $end_year ]] || [[ $start_month != $end_month ]]; then 
                 {{ LINK_GRIB }} {{ ERA_DATA }}/${start_year}/${start_year}_${start_month}*.grib \
@@ -149,9 +141,44 @@
 
             source {{ ENV_FILE }}
 
-            ./ungrib/ungrib.exe 
+            ./ungrib/ungrib.exe && grep "Successful completion" ungrib.log
+
+        """
+        platform={{ PLATFORM }}
+        [[[directives]]]
+            --nodes = 1
+            --ntasks = 1
+            --partition=shared
+            --time=12:00:00
+
+    [[metgrid]]
+        script = """
             
-            srun -n 1 ./metgrid/metgrid.exe 
+            envsubst < $etcdir/wps/namelist.wps > namelist.wps
+
+            ln -sf {{ METGRID_DIR }} .
+            ln -sf {{ GEO_EM_FILE }} geo_em.d01.nc
+
+            source {{ ENV_FILE }}
+
+            srun -n 1 ./metgrid/metgrid.exe && grep "Successful completion" metgrid.log
+        """
+        platform={{ PLATFORM }}
+        [[[directives]]]
+            --nodes = 1
+            --ntasks = 1
+            --partition=shared
+            --time=12:00:00
+
+    [[real]]
+        script = """
+
+            for i in $etcdir/wrf/*; do 
+                basei=$( basename $i )
+                envsubst < $i > $basei
+            done
+
+            source {{ ENV_FILE }}
 
             srun -n {{ cpuPerNode }} {{ REAL_EXE }} 
         """
@@ -237,21 +264,6 @@
          """
          platform={{ DATAMOVER }}
 
-    [[splitVar]]
-      script = """
-       modelDataPath=$OUTPUT_DIR/ATM
-       YY=$start_year 
-       MM=$start_month
-       mkdir -p $OUTPUT_DIR/ATM/$YY/$MM
-       cd $OUTPUT_DIR/ATM/$YY/$MM
-       {{ CDO }} -splitvar -mergetime [ -apply,-selvar,{{ VARLIST2D }} [ $modelDataPath/wrfout_d01_${YY}-${MM}-* ] ] WRF_
-       """
-        platform={{ PLATFORM }}
-        [[[directives]]]
-            --nodes = 1
-            --ntasks=1
-            --time=12:00:00
-
      [[ar_wrf_out]]
          script = """
            YY=$start_year 
@@ -280,14 +292,19 @@
             ln -sf {{ BATHY_FILE }} .
             ln -sf {{ MITGRID_FILE }} . 
             cp -f {{ WRF_RUN_DIR }}/* .
-            cp -f $etcdir/* .
-            envsubst < $etcdir/namelist.esmf > namelist.esmf
-            envsubst < $etcdir/namelist.wps > namelist.wps
-            envsubst < $etcdir/namelist.input_40levs > namelist.input
-            envsubst < $etcdir/data > data
-            envsubst < $etcdir/data.cal > data.cal
-            envsubst < $etcdir/data.diagnostics > data.diagnostics
-            envsubst < $etcdir/namelist.rc > namelist.rc
+
+            for i in $etcdir/wrf/*; do 
+                basei=$( basename $i )
+                envsubst < $i > $basei
+            done
+            for i in $etcdir/mitgcm/*; do 
+                basei=$( basename $i )
+                envsubst < $i > $basei
+            done
+            for i in $etcdir/cpld/*; do 
+                basei=$( basename $i )
+                envsubst < $i > $basei
+            done
 
             # Link Ocean BND and INI files
             ln -sf {{ GLORYS_DATA }}/* .
@@ -331,7 +348,7 @@
             # do nothing
             echo "Starting UPP from $current_date"
        else
-          current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
+          current_date=$({{ ISODATETIME }} ${current_date} --offset1=PTM)
           echo "Starting UPP from $current_date"
        fi
 
@@ -354,9 +371,9 @@
               srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe > upp.log
               rm upp.log #because these files too large
               mv WRFPRS* $oFile
-              idate=$({{ ISODATETIME }} ${idate} --offset1=PT{{ atmOutFreqMins }}M)
+              idate=$({{ ISODATETIME }} ${idate} --offset1=PTM)
             done
-            current_date=$({{ ISODATETIME }} ${current_date} --offset1=PT{{ atmFileFreqMins }}M)
+            current_date=$({{ ISODATETIME }} ${current_date} --offset1=PTM)
        done
        grib_copy wrfprs_d01_*.grb2 'WRFPRS_[shortName].grb'
        rm -f wrfprs_d01_*.grb2

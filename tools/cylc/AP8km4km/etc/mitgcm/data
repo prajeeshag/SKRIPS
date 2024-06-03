@@ -52,7 +52,7 @@
  chkptFreq         = 0.,
  pChkptFreq        = $chkptFreq, 
  dumpFreq          = 10000000000000.,
- taveFreq          = 10000000000000.,
+ !taveFreq          = 0.,
  tauThetaClimRelax = 0.,
  tauSaltClimRelax  = 0.,
  monitorFreq       = 100000.,
