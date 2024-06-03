@@ -51,7 +51,7 @@
  abEps             = 0.1,
  chkptFreq         = 0.,
  pChkptFreq        = $chkptFreq, 
- dumpFreq          = 10000000000000.,
+ !dumpFreq          = 0.,
  !taveFreq          = 0.,
  tauThetaClimRelax = 0.,
  tauSaltClimRelax  = 0.,

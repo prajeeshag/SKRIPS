@@ -45,7 +45,8 @@
             skrips[-{{ MAINCYCLE }}]:submitted => ungrib => metgrid => real 
             real & move_restarts[-{{ MAINCYCLE }}] => link_restarts
             link_restarts => skrips
-            skrips => move_restarts => move_outputs
+            skrips => upp & move_restarts
+            upp => move_outputs
             move_outputs => trigger_post_proc 
             trigger_post_proc => scrap_rundir
         """
@@ -60,6 +61,8 @@
 [runtime]
     [[root]]
       work sub-directory = $CYLC_TASK_CYCLE_POINT/
+      execution retry delays = PT2M # Default retry once after 2 minutes
+
       [[[environment]]]
 
         # Run 1 hour extra because WRF sometimes fails to write restart files
@@ -319,72 +322,14 @@
             --time=24:00:00
 
     [[upp]]
+      pre-script = "source {{ ENV_FILE }}"
       script = """
-       modelDataPath=$OUTPUT_DIR/ATM
-       mkdir -p $OUTPUT_DIR/ATM/$start_year/$start_month
-       cd $OUTPUT_DIR/ATM/$start_year/$start_month
-
-       ln -fs ${txtCntrlFile} postxconfig-NT.txt
-       ln -fs {{ UPP_DIR }}/parm/post_avblflds.xml post_avblflds.xml
-       ln -fs {{ UPP_DIR }}/src/lib/g2tmpl/params_grib2_tbl_new params_grib2_tbl_new
-       ln -fs {{ UPP_DIR }}/parm/nam_micro_lookup.dat .
-       ln -fs {{ UPP_DIR }}/parm/hires_micro_lookup.dat .
-
-       ln -fs $CRTMDIR/EmisCoeff/IR_Water/Big_Endian/* .
-
-       ln -fs $CRTMDIR/EmisCoeff/IR_Land/SEcategory/Big_Endian/* .
-
-       ln -fs $CRTMDIR/AerosolCoeff/Big_Endian/AerosolCoeff.bin     ./
-       ln -fs $CRTMDIR/CloudCoeff/Big_Endian/CloudCoeff.bin         ./
-
-       ln -fs $CRTMDIR/SpcCoeff/Big_Endian/* .
-       ln -fs $CRTMDIR/TauCoeff/ODPS/Big_Endian/* .
-
-       source {{ ENV_FILE }}
-       
-       current_date=${CYLC_TASK_CYCLE_POINT}
-
-       if [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]]; then
-            # do nothing
-            echo "Starting UPP from $current_date"
-       else
-          current_date=$({{ ISODATETIME }} ${current_date} --offset1=PTM)
-          echo "Starting UPP from $current_date"
-       fi
-
-       while [[ $current_date < $NEXT_CYCLE_POINT_POST ]]; do
-            export dStamp=$({{ ISODATETIME }} ${current_date} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
-            export inFile=$modelDataPath/wrfout_d01_$dStamp
-            # Check if that file exists
-            if [[ ! -e ${inFile} ]]; then
-              echo "ERROR: Can't find ${inFile}. Directory or file does not exist.  Exiting..."
-              echo "ERROR: Check if 'modelDataPath': ${modelDataPath} exists."
-              exit 1
-            fi
-            
-            idate=$current_date
-            for i in $(seq 1 {{ nTimesInWRFout }}); do 
-              export dateStamp=$({{ ISODATETIME }} ${idate} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
-              oFile=wrfprs_d01_${dateStamp}.grb2
-
-              envsubst < $etcdir/itag > itag
-              srun -n {{ uppNtasks }} {{ UPP_DIR }}/bin/unipost.exe > upp.log
-              rm upp.log #because these files too large
-              mv WRFPRS* $oFile
-              idate=$({{ ISODATETIME }} ${idate} --offset1=PTM)
-            done
-            current_date=$({{ ISODATETIME }} ${current_date} --offset1=PTM)
-       done
-       grib_copy wrfprs_d01_*.grb2 'WRFPRS_[shortName].grb'
-       rm -f wrfprs_d01_*.grb2
-      """
+        upp.sh -u {{ UPP_DIR }} -c $etcdir/postxconfig-NT2d.txt -p wrf2d_ -r "srun -n 32"
+        upp.sh -u {{ UPP_DIR }} -c $etcdir/postxconfig-NT3d.txt -p wrf3d_ -r "srun -n 32"
+        """
       platform={{ PLATFORM }}
       [[[environment]]]
-        txtCntrlFile=$CYLC_WORKFLOW_RUN_DIR/etc/postxconfig-NT-WRFPRS.txt # grib2
         tmmark=tm00
-        #MP_SHARED_MEMORY=no
-        #MP_LABELIO=yes
-        CRTMDIR={{ UPP_DIR }}/src/lib/crtm2/src/fix
 
       [[[directives]]]
          --nodes = 1
