@@ -1,5 +1,7 @@
 #/bin/bash
 
+set -eu
+
 mydir=$( dirname $0 )
 . $mydir/koi
 

@@ -24,9 +24,6 @@
 {% set REAL_EXE = SKRIPS_DIR ~ "/external/WRF/main/real.exe" %}
 {% set WRF_RUN_DIR = SKRIPS_DIR ~ "/external/WRF/test/em_real" %}
 
-{% set LINK_GRIB = WPS_DIR ~ "/link_grib.csh" %}
-{% set UNGRIB_DIR = WPS_DIR ~ "/ungrib" %}
-{% set METGRID_DIR = WPS_DIR ~ "/metgrid" %}
 {% set ENV_FILE = SKRIPS_DIR ~ "/env.mach" %}
 
 
@@ -60,7 +57,8 @@
 
 [runtime]
     [[root]]
-      work sub-directory = $CYLC_TASK_CYCLE_POINT/
+      pre-script = "source {{ ENV_FILE }}"
+      #work sub-directory = $CYLC_TASK_CYCLE_POINT
       execution retry delays = PT2M # Default retry once after 2 minutes
 
       [[[environment]]]
@@ -81,6 +79,13 @@
 
             
         etcdir=$CYLC_WORKFLOW_RUN_DIR/etc
+        WPS_DIR={{ WPS_DIR }}
+        GEO_EM_FILE={{ GEO_EM_FILE }}
+        ERA5_DATA={{ ERA5_DATA }}
+        SKRIPS_EXE={{ SKRIPS_EXE }}
+        SKRIPS_DIR={{ SKRIPS_DIR }}
+        REAL_EXE={{ REAL_EXE }}
+        cpuPerNode={{ cpuPerNode }}
 
         NEXT_CYCLE_POINT=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} --offset1={{ MAINCYCLE }})
 
@@ -128,118 +133,37 @@
           {% endif %}
 
     [[ungrib]]
-        script = """
-            
-            envsubst < $etcdir/wps/namelist.wps > namelist.wps
-
-            ln -sf {{ UNGRIB_DIR }} .
-            cp -f $etcdir/wps/Vtable .
-
-            if [[ $start_year != $end_year ]] || [[ $start_month != $end_month ]]; then 
-                {{ LINK_GRIB }} {{ ERA_DATA }}/${start_year}/${start_year}_${start_month}*.grib \
-                                {{ ERA_DATA }}/${end_year}/${end_year}_${end_month}*.grib
-            else
-                {{ LINK_GRIB }} {{ ERA_DATA }}/${start_year}/${start_year}_${start_month}*.grib
-            fi
-
-            source {{ ENV_FILE }}
-
-            ./ungrib/ungrib.exe && grep "Successful completion" ungrib.log
-
-        """
+        script = "ungrib.sh"
         platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = 1
             --ntasks = 1
             --partition=shared
-            --time=12:00:00
 
     [[metgrid]]
-        script = """
+        script = "metgrid.sh"
             
-            envsubst < $etcdir/wps/namelist.wps > namelist.wps
-
-            ln -sf {{ METGRID_DIR }} .
-            ln -sf {{ GEO_EM_FILE }} geo_em.d01.nc
-
-            source {{ ENV_FILE }}
-
-            srun -n 1 ./metgrid/metgrid.exe && grep "Successful completion" metgrid.log
-        """
         platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = 1
             --ntasks = 1
             --partition=shared
-            --time=12:00:00
 
     [[real]]
-        script = """
-
-            for i in $etcdir/wrf/*; do 
-                basei=$( basename $i )
-                envsubst < $i > $basei
-            done
-
-            source {{ ENV_FILE }}
-
-            srun -n {{ cpuPerNode }} {{ REAL_EXE }} 
-        """
+        script = "real.sh"
         platform={{ PLATFORM }}
         [[[directives]]]
             --nodes = 1
             --ntasks = {{ cpuPerNode }}
-            --time=12:00:00
 
     [[move_restarts]]
-        script = """
-            set -x
-            echo "Move restart files"
-            mkdir -p $RESTART_DIR
-            find . -type l -delete # Delete all softlinks
-            nIter=$(echo "$startTimeNext/$deltaT" | bc)
-            nIter=$(printf "%010d\n" $nIter)
-            
-            rsync -a  ./wrfrst_* $RESTART_DIR/
-            rsync -a ./pickup.$nIter.data ./pickup.$nIter.meta $RESTART_DIR/
-            rm ./wrfrst_*
-            rm ./pickup.$nIter.*
-        """
+        script = "move_restarts.sh"
 
     [[link_restarts]]
-        script = """
-            echo "Link restart files"
-            # Link restart files
-            [[ "$CYLC_TASK_CYCLE_POINT" == "$CYLC_WORKFLOW_INITIAL_CYCLE_POINT" ]] && \
-            echo "Cold start: No restart to link" && exit 0
+        script = "link_restarts.sh"
 
-            nIter=$(echo "$startTime/$deltaT" | bc)
-            nIter=$(printf "%010d\n" $nIter)
-            dateStamp=$({{ ISODATETIME }} ${CYLC_TASK_CYCLE_POINT} --format CCYY-MM-DDThh:mm:ss | sed 's/T/_/g')
-
-            source_file=$RESTART_DIR/pickup.$nIter.meta
-            [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
-
-            source_file=$RESTART_DIR/pickup.$nIter.data
-            [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
-
-            source_file=$RESTART_DIR/wrfrst_d01_$dateStamp
-            [ -e "$source_file" ] && ln -sf "$source_file" . || { echo "Error while linking $source_file "; exit 1;}
-        """
-
-    [[move_outputs]]
-        script = """
-            echo "Move Outputs"
-            mkdir -p $OUTPUT_DIR/ATM
-            mv wrfout_* $OUTPUT_DIR/ATM/
-
-            mkdir -p $OUTPUT_DIR/OCN
-            mv *.data *.meta  $OUTPUT_DIR/OCN/
-            if [ -f available_diagnostics.log ]; then
-                mkdir -p $ARCHIVE_DIR/OCN
-                cp available_diagnostics.log $ARCHIVE_DIR/OCN
-            fi
-        """
+    [[mv_ocn_out]]
+        script = "mv_ocn_out.sh"
 
     [[post_proc]]
         script = """
