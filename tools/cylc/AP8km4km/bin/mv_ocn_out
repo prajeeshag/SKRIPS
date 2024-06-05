@@ -1,0 +1,9 @@
+#!/bin/bash
+set -eu
+
+mkdir -p $OUTPUT_DIR/OCN
+mv *.data *.meta  $OUTPUT_DIR/OCN/
+if [ -f available_diagnostics.log ]; then
+    mkdir -p $ARCHIVE_DIR/OCN
+    cp available_diagnostics.log $ARCHIVE_DIR/OCN
+fi
