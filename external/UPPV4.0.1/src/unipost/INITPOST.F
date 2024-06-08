@@ -197,13 +197,8 @@
       ENDIF
 !
 ! Getting start time
-#ifdef COMMCODE
-      call ext_ncd_get_dom_ti_char(DataHandle,'SIMULATION_START_DATE',  &
-        startdate, status )
-#else
       call ext_ncd_get_dom_ti_char(DataHandle,'START_DATE',startdate,   &
         status )
-#endif
         print*,'startdate= ',startdate
       jdate=0
       idate=0
