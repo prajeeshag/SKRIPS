@@ -202,6 +202,7 @@ function __build_wrf_lib {
     __conf_replace configure.wrf
 
     sed -i 's/# -DRSL0_ONLY/-DRSL0_ONLY/g' ./configure.wrf
+    sed -i "0,/CFLAGS_LOCAL/s/CFLAGS_LOCAL.*/& -DRSL0_ONLY/" configure.wrf
 
     rm -rf external/esmf_time_f90 && ln -sf $SKRIPS_DIR/external/cesmf_time_f90 external/esmf_time_f90
 
