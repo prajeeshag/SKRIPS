@@ -14,23 +14,24 @@ function __get_absolute_path {
 function __source_env {
     if [ -f "env.mach" ]; then
         source env.mach
-        export SKRIPS_DIR=$(pwd)
-        export MITGCM_DIR=$SKRIPS_DIR/external/MITgcm/
-        export WRF_DIR=$SKRIPS_DIR/external/WRF/
-        export JASPER_DIR=$SKRIPS_DIR/external/jasper/
-        export WPS_DIR=$SKRIPS_DIR/external/WPS/
-        export UPP_DIR=$SKRIPS_DIR/external/UPPV4.0.1/
-        export ESMF_DIR=$SKRIPS_DIR/external/esmf/
-        export ESMF_LIB=$ESMF_DIR/lib/lib$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/
-        export ESMF_MOD=$ESMF_DIR/mod/mod$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/ 
-        export ESMFMKFILE=$ESMF_LIB/esmf.mk
-        export JASPERLIB=$SKRIPS_DIR/libs/jasper/lib64
-        export JASPERINC=$SKRIPS_DIR/libs/jasper/include
     else
         echo "No env file found"
         echo "NOTE: try again after running: $0 set_machine MACHINENAME "
         exit 1
     fi
+
+    export SKRIPS_DIR=$(dirname $0)
+    export MITGCM_DIR=$SKRIPS_DIR/external/MITgcm/
+    export WRF_DIR=$SKRIPS_DIR/external/WRF/
+    export JASPER_DIR=$SKRIPS_DIR/external/jasper/
+    export WPS_DIR=$SKRIPS_DIR/external/WPS/
+    export UPP_DIR=$SKRIPS_DIR/external/UPPV4.0.1/
+    export ESMF_DIR=$SKRIPS_DIR/external/esmf/
+    export ESMF_LIB=$ESMF_DIR/lib/lib$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/
+    export ESMF_MOD=$ESMF_DIR/mod/mod$ESMF_BOPT/$ESMF_OS.$ESMF_COMPILER.$ESMF_ABI.$ESMF_COMM.$ESMF_SITE/ 
+    export ESMFMKFILE=$ESMF_LIB/esmf.mk
+    export JASPERLIB=$SKRIPS_DIR/libs/jasper/lib64
+    export JASPERINC=$SKRIPS_DIR/libs/jasper/include
 }
 
 function __available_machines {
