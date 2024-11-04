@@ -20,7 +20,7 @@ function __source_env {
         exit 1
     fi
 
-    export SKRIPS_DIR=$(dirname $0)
+    export SKRIPS_DIR=$(dirname $(realpath $0))
     export MITGCM_DIR=$SKRIPS_DIR/external/MITgcm/
     export WRF_DIR=$SKRIPS_DIR/external/WRF/
     export JASPER_DIR=$SKRIPS_DIR/external/jasper/
